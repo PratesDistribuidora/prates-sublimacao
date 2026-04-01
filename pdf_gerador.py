@@ -14,8 +14,6 @@ from reportlab.platypus import (
     Spacer, HRFlowable, Image
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
 LOGO_PATH = "logo.png"
 

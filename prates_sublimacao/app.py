@@ -55,7 +55,8 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
 [data-testid="stSidebar"] * { color: #c5cad3 !important; }
 
 /* Nav buttons — alinhados à esquerda (fix Streamlit moderno) */
-[data-testid="stSidebar"] .stButton > button {
+[data-testid="stSidebar"] .stButton > button,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
     background: transparent !important;
     border: none !important;
     border-left: 3px solid transparent !important;
@@ -69,17 +70,22 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
     box-shadow: none !important;
     transition: all 0.15s !important;
     width: 100% !important;
+    display: block !important;
 }
-[data-testid="stSidebar"] .stButton > button:hover {
+[data-testid="stSidebar"] .stButton > button:hover,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
     background: #1a2235 !important;
     color: #c5cad3 !important;
     border-left: 3px solid #2d7a4f44 !important;
 }
 [data-testid="stSidebar"] .stButton > button div,
-[data-testid="stSidebar"] .stButton > button p {
+[data-testid="stSidebar"] .stButton > button p,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] div,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] p {
     text-align: left !important;
     margin: 0 !important;
     width: 100% !important;
+    display: block !important;
 }
 
 /* Botões — simples e discretos */
