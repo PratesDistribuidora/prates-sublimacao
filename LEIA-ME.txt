@@ -1,0 +1,86 @@
+╔══════════════════════════════════════════════════════════════╗
+║        SISTEMA PRATES SUBLIMAÇÃO — INSTRUÇÕES DE USO        ║
+╚══════════════════════════════════════════════════════════════╝
+
+📁 ARQUIVOS DO SISTEMA
+─────────────────────
+  app.py           → Interface web (arquivo principal)
+  database.py      → Banco de dados SQLite
+  calculadora.py   → Lógica de cálculo de preços
+  importador.py    → Importação da planilha Excel
+  requirements.txt → Dependências Python
+
+══════════════════════════════════════════════════════════════
+⚙️  INSTALAÇÃO (fazer apenas uma vez)
+══════════════════════════════════════════════════════════════
+
+1) Instale o Python (se não tiver):
+   → Acesse: https://www.python.org/downloads/
+   → Baixe o Python 3.11 ou superior
+   → Durante a instalação, MARQUE a opção "Add Python to PATH"
+
+2) Abra o Prompt de Comando (CMD) ou Terminal
+
+3) Navegue até a pasta do sistema:
+   cd C:\Users\SeuNome\Desktop\prates_sublimacao
+
+4) Instale as dependências:
+   pip install -r requirements.txt
+
+══════════════════════════════════════════════════════════════
+🚀  COMO RODAR O SISTEMA
+══════════════════════════════════════════════════════════════
+
+1) Abra o Prompt de Comando na pasta do sistema
+
+2) Execute:
+   streamlit run app.py
+
+3) O navegador abrirá automaticamente em:
+   http://localhost:8501
+
+4) Para parar o sistema: pressione Ctrl+C no terminal
+
+══════════════════════════════════════════════════════════════
+📱  NAVEGAÇÃO DO SISTEMA (menu lateral esquerdo)
+══════════════════════════════════════════════════════════════
+
+  📊 Dashboard          → KPIs, gráficos, visão geral
+  🧮 Simulador de Preço → Calcule o preço de 1 peça na hora
+  🧾 Orçamento de Pedido→ Monte pedidos completos com lucro
+  📦 Simulador de Lote  → Simule antes de comprar tecido
+  📤 Tabela para Cliente→ Tabela filtrada para WhatsApp
+  📈 Relatório Mensal   → Registro e painel do mês
+  ⚙️ Configurações      → Fornecedores, faccionistas, margens
+  📋 Histórico de Preços→ Log de alterações
+  📥 Importar Planilha  → Importe o xlsx original
+
+══════════════════════════════════════════════════════════════
+💡  DICAS IMPORTANTES
+══════════════════════════════════════════════════════════════
+
+✅ Na primeira vez, o banco já vem pré-populado com:
+   - 146 SKUs completos (todos os modelos, cores e pesos)
+   - 24 combinações de tecido+cor com preços da Importline
+   - Parâmetros padrão (margens, frete, etc.)
+
+✅ Para importar sua planilha Excel atualizada:
+   → Menu → 📥 Importar Planilha → selecione o .xlsx
+
+✅ Para alterar margens (ex: aumentar de 20% para 25%):
+   → Menu → ⚙️ Configurações → Parâmetros Globais
+   → Mude "Margem Super Revenda (%)"
+   → Clique Salvar → TODOS os preços recalculam
+
+✅ Para atualizar preço de um tecido:
+   → Menu → ⚙️ Configurações → Fornecedores
+   → Encontre o tecido+cor → atualize o preço → Salvar
+   → O sistema registra automaticamente no Histórico
+
+✅ O banco de dados fica salvo em:
+   prates_sublimacao.db (na mesma pasta)
+   → Faça backup deste arquivo regularmente!
+
+══════════════════════════════════════════════════════════════
+                Prates Sublimação — Macaé / RJ
+══════════════════════════════════════════════════════════════
