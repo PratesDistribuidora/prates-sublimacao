@@ -875,17 +875,10 @@ elif pagina == "⚙️ Configurações":
 
                 if len(df_ed) == 0:
                     st.warning("Nenhum SKU encontrado com esses filtros.")
+                elif len(df_ed) > 1:
+                    st.info(f"🔍 {len(df_ed)} SKUs encontrados. Refine os filtros até chegar em 1 SKU para editar.")
                 else:
-                    st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
-                    if len(df_ed) == 1:
-                        sel_id = str(df_ed.iloc[0]['id'])
-                    else:
-                        sec("Selecionar SKU para Editar")
-                        labels_ed = {
-                            str(s['id']): f"#{s['id']} — {s['modelo']} | {s['tecido']} | {s['cor']} | {s['tamanho']} | {s['peso_g']}g"
-                            for s in df_ed.to_dict('records')
-                        }
-                        sel_id = st.selectbox("SKU", list(labels_ed.keys()), format_func=lambda x: labels_ed[x], key="edit_id")
+                    sel_id = str(df_ed.iloc[0]['id'])
                     sku_sel = next(s for s in sk if str(s['id']) == sel_id)
 
                     st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
