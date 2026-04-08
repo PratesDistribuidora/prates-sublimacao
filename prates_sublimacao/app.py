@@ -28,7 +28,7 @@ st.set_page_config(
     page_title="Prates Sublimação",
     page_icon="🧵",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 init_db()
 
@@ -40,6 +40,20 @@ def get_logo():
     return None
 
 _LOGO = get_logo()
+
+# ══ VERIFICAR LOGIN ANTES DE TUDO ════════════════
+if 'usuario_logado' not in st.session_state:
+    from auth import tela_login
+    st.markdown("""
+    <style>
+    html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
+    [data-testid="stAppViewContainer"] { background: #111318; }
+    [data-testid="stHeader"] { background: transparent; }
+    section[data-testid="stSidebar"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
+    tela_login(_LOGO)
+    st.stop()
 
 st.markdown("""
 <style>
@@ -98,17 +112,6 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
 ::-webkit-scrollbar-thumb { background: #252932; border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
-
-# ══ VERIFICAR LOGIN ══════════════════════════════
-if 'usuario_logado' not in st.session_state:
-    st.markdown("""
-    <style>
-    [data-testid="stSidebar"] { display: none !important; }
-    [data-testid="stAppViewContainer"] > section:first-child { display: none !important; }
-    </style>
-    """, unsafe_allow_html=True)
-    tela_login(_LOGO)
-    st.stop()
 
 usuario = st.session_state['usuario_logado']
 nivel = usuario.get('nivel', '')
