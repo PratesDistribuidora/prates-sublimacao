@@ -22,8 +22,7 @@ from calculadora import (
     calcular_sku_completo, calcular_manual, calcular_lote,
     gerar_tabela_catalogo, resumo_dashboard,
 )
-# CORREÇÃO AQUI: Adicionado 'verificar_senha' na importação
-from auth import tela_login, fazer_logout, paginas_disponiveis, hash_senha, verificar_senha
+from auth import tela_login, fazer_logout, paginas_disponiveis, hash_senha
 
 st.set_page_config(
     page_title="Prates Sublimação",
@@ -34,15 +33,7 @@ st.set_page_config(
 
 @st.cache_data(show_spinner=False)
 def get_logo():
-    # Ajuste o caminho da imagem se necessário, para que seja relativo à raiz do projeto Streamlit
-    # Se 'logo.png' estiver na mesma pasta de 'app.py', o caminho é apenas 'logo.png'
-    # Se estiver na raiz do repositório, mas o Streamlit lê a subpasta, pode precisar de '../logo.png'
-    # Mas como você disse que o Streamlit lê SOMENTE a subpasta prates_sublimacao/,
-    # então 'logo.png' deve estar dentro de 'prates_sublimacao/'
-    if os.path.exists("prates_sublimacao/logo.png"): # Assumindo que o app.py está em prates_sublimacao/
-        with open("prates_sublimacao/logo.png","rb") as f:
-            return base64.b64encode(f.read()).decode()
-    elif os.path.exists("logo.png"): # Caso o app.py esteja na raiz e a logo também
+    if os.path.exists("logo.png"):
         with open("logo.png","rb") as f:
             return base64.b64encode(f.read()).decode()
     return None
@@ -50,7 +41,6 @@ def get_logo():
 _LOGO = get_logo()
 
 # ══ ROTEADOR PRINCIPAL ════════════════════════════
-# Se o usuário NÃO está logado, mostra a tela de login e para a execução
 if 'usuario_logado' not in st.session_state:
     st.markdown("""
     <style>
@@ -61,13 +51,11 @@ if 'usuario_logado' not in st.session_state:
     </style>
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
-    st.stop() # Importante para parar a execução e não renderizar o resto do app
-else:
-    # Se o usuário está logado, inicializa o DB e renderiza o aplicativo principal
-    init_db()
+    st.stop()
 
-    # AQUI ESTÁ A ESTRUTURA: Todo o código do aplicativo principal agora está dentro deste 'else'
-    # para garantir que só seja executado se o usuário estiver logado.
+init_db()
+
+if True:
     st.markdown("""
     <style>
     html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
@@ -125,15 +113,14 @@ else:
     ::-webkit-scrollbar-thumb { background: #252932; border-radius: 3px; }
     </style>
     """, unsafe_allow_html=True)
-
+    
     usuario = st.session_state['usuario_logado']
     nivel = usuario.get('nivel', '')
     paginas = paginas_disponiveis()
-
+    
     # Sidebar
     with st.sidebar:
         if _LOGO:
-            # Ajuste o caminho da imagem aqui também se necessário
             st.markdown(
                 f'<div style="text-align:center;padding:16px 8px 8px">'
                 f'<img src="data:image/png;base64,{_LOGO}" width="130" style="border-radius:6px"></div>',
@@ -145,21 +132,21 @@ else:
             unsafe_allow_html=True
         )
         st.markdown('<hr style="border-color:#252932;margin:4px 0 10px">', unsafe_allow_html=True)
-
+    
         if 'pagina' not in st.session_state or st.session_state.pagina not in paginas:
             st.session_state.pagina = paginas[0] if paginas else ""
-
+    
         for item in paginas:
             if st.button(item, key=f"nav_{item}", use_container_width=True):
                 st.session_state.pagina = item
                 st.rerun()
-
+    
         pagina = st.session_state.pagina
         st.markdown('<hr style="border-color:#252932;margin:10px 0 8px">', unsafe_allow_html=True)
         if st.button("🚪 Sair", use_container_width=True, key="btn_sair"):
             fazer_logout()
         st.markdown('<p style="text-align:center;color:#3a4050;font-size:11px;margin:8px 0 0">Prates Sublimação · Macaé/RJ · v6.0</p>', unsafe_allow_html=True)
-
+    
     # Helpers
     def fmt(v):
         if v is None: return "—"
@@ -170,32 +157,31 @@ else:
     def kpi_txt(label, valor, cor=""):
         return f'<div class="kpi-card {cor}"><p class="label">{label}</p><p class="value">{valor}</p></div>'
     def titulo(icon, texto):
-        # O caminho da logo no título também precisa ser ajustado se necessário
         logo_html = f'<img src="data:image/png;base64,{_LOGO}" height="32" style="border-radius:4px">' if _LOGO else icon
         st.markdown(f'<div class="page-title">{logo_html} {texto}</div>', unsafe_allow_html=True)
     def sec(t):
         st.markdown(f'<p class="section-label">{t}</p>', unsafe_allow_html=True)
-
+    
     @st.cache_data(ttl=60, show_spinner=False)
     def catalogo_cache():
         return gerar_tabela_catalogo()
-
+    
     def get_opcoes():
         s = get_skus()
         return s, sorted(set(x['modelo'] for x in s)), sorted(set(x['tecido'] for x in s))
-
+    
     def cores(s,m,t):
         return sorted(set(x['cor'] for x in s if x['modelo']==m and x['tecido']==t))
-
+    
     def tams(s,m,t,c):
         return sorted(set(x['tamanho'] for x in s if x['modelo']==m and x['tecido']==t and x['cor']==c))
-
+    
     CHART = dict(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#6b7280', size=11), height=220,
         margin=dict(l=10,r=10,t=30,b=10),
     )
-
+    
     # ══ DASHBOARD ══════════════════════════════════
     if pagina == "📊 Dashboard":
         titulo("📊", "Dashboard")
@@ -247,7 +233,7 @@ else:
             st.markdown('<hr style="border-color:#252932;margin:16px 0">', unsafe_allow_html=True)
             sec("Costura Ativa por Modelo")
             st.dataframe(pd.DataFrame([{'Modelo': f['modelo'], 'Faccionista Ativa': f['faccionista_ativa'], 'Preço Ativo': fmt(get_preco_costura(f['modelo']))} for f in get_faccionistas()]), use_container_width=True, hide_index=True)
-
+    
     # ══ SIMULADOR ══════════════════════════════════
     elif pagina == "🧮 Simulador de Preço":
         titulo("🧮", "Simulador de Preço")
@@ -308,167 +294,283 @@ else:
                 p2.markdown(kpi("Super Revenda", cb['super_revenda'], "verde"), unsafe_allow_html=True)
                 p3.markdown(kpi("Atacado +35%", cb['atacado'], "verde"), unsafe_allow_html=True)
                 p4.markdown(kpi("Varejo +50%", cb['varejo'], "verde"), unsafe_allow_html=True)
-
-    # ══ CÁLCULO EM LOTE ════════════════════════════
-    elif pagina == "📦 Cálculo em Lote":
-        titulo("📦", "Cálculo de Preço em Lote")
-        st.info("Calcule o preço de vários SKUs de uma vez. Use os filtros para selecionar.")
-        skus, mods, tecs = get_opcoes()
-        df_sk = pd.DataFrame(skus) if skus else pd.DataFrame()
-        if df_sk.empty:
-            st.warning("Nenhum SKU cadastrado para cálculo em lote.")
+    
+    # ══ MARGEM REVERSA ══════════════════════════════
+    elif pagina == "🔄 Margem Reversa":
+        titulo("🔄", "Margem Reversa")
+        t1, t2 = st.tabs(["Qual minha margem se cobrar R$X?", "Quanto cobrar para ter X% de margem?"])
+        skus, mods, _ = get_opcoes()
+        with t1:
+            st.info("Informe o preço que o cliente quer pagar e veja sua margem real.")
+            c1, c2 = st.columns(2)
+            with c1:
+                m1  = st.selectbox("Modelo", mods, key="mr_m")
+                ts1 = sorted(set(s['tecido'] for s in skus if s['modelo']==m1))
+                t1_ = st.selectbox("Tecido", ts1, key="mr_t")
+            with c2:
+                cr1  = cores(skus, m1, t1_)
+                c1_  = st.selectbox("Cor", cr1, key="mr_c") if cr1 else None
+                tm1  = tams(skus, m1, t1_, c1_) if c1_ else []
+                tm1_ = st.selectbox("Tamanho", tm1, key="mr_tam") if tm1 else None
+            preco_cli = st.number_input("Preço que o cliente quer pagar (R$)", 0.01, value=12.0, step=0.5)
+            if c1_ and tm1_:
+                calc = calcular_sku_completo(m1, t1_, c1_, tm1_)
+                if calc:
+                    custo  = calc['custo_final']
+                    lucro  = round(preco_cli - custo, 2)
+                    margem = round(lucro / preco_cli * 100, 1) if preco_cli else 0
+                    markup = round(lucro / custo * 100, 1) if custo else 0
+                    st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+                    p1,p2,p3,p4 = st.columns(4)
+                    p1.markdown(kpi("Custo Final", custo), unsafe_allow_html=True)
+                    p2.markdown(kpi("Preço Cobrado", preco_cli), unsafe_allow_html=True)
+                    if lucro >= 0:
+                        p3.markdown(kpi("Lucro / Peça", lucro, "verde"), unsafe_allow_html=True)
+                    else:
+                        p3.markdown(kpi("⚠️ Prejuízo", lucro, "vermelho"), unsafe_allow_html=True)
+                    p4.metric("Margem Real", f"{margem:.1f}%", delta=f"Markup: {markup:.1f}%")
+                    st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+                    sec("Comparação com suas faixas padrão")
+                    dc = {'Faixa': ['Super Revenda +20%','Atacado +35%','Varejo +50%','Preço do cliente'],
+                          'Preço': [calc['super_revenda'], calc['atacado'], calc['varejo'], preco_cli],
+                          'Lucro': [round(calc['super_revenda']-custo,2), round(calc['atacado']-custo,2), round(calc['varejo']-custo,2), lucro],
+                          'Margem %': [round((calc['super_revenda']-custo)/calc['super_revenda']*100,1), round((calc['atacado']-custo)/calc['atacado']*100,1), round((calc['varejo']-custo)/calc['varejo']*100,1), margem]}
+                    st.dataframe(pd.DataFrame(dc), use_container_width=True, hide_index=True)
+                    if lucro < 0: st.error(f"Abaixo do custo! Mínimo sem prejuízo: {fmt(custo)}")
+                    elif margem < 10: st.warning(f"Margem muito baixa ({margem:.1f}%). Sua faixa SR padrão é 20%.")
+                    else: st.success(f"Margem de {margem:.1f}% — dentro do esperado.")
+        with t2:
+            st.info("Arraste o slider e veja qual preço cobrar para atingir a margem desejada.")
+            c1, c2 = st.columns(2)
+            with c1:
+                m2  = st.selectbox("Modelo", mods, key="mr2_m")
+                ts2 = sorted(set(s['tecido'] for s in skus if s['modelo']==m2))
+                t2_ = st.selectbox("Tecido", ts2, key="mr2_t")
+            with c2:
+                cr2  = cores(skus, m2, t2_)
+                c2_  = st.selectbox("Cor", cr2, key="mr2_c") if cr2 else None
+                tm2  = tams(skus, m2, t2_, c2_) if c2_ else []
+                tm2_ = st.selectbox("Tamanho", tm2, key="mr2_tam") if tm2 else None
+            mg_des = st.slider("Margem desejada (%)", 5, 100, 20, 1)
+            if c2_ and tm2_:
+                calc2 = calcular_sku_completo(m2, t2_, c2_, tm2_)
+                if calc2:
+                    custo2 = calc2['custo_final']
+                    pnec   = round(custo2 / (1 - mg_des/100), 2)
+                    luc2   = round(pnec - custo2, 2)
+                    st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+                    p1,p2,p3,p4 = st.columns(4)
+                    p1.markdown(kpi("Custo Final", custo2), unsafe_allow_html=True)
+                    p2.markdown(kpi(f"Preço p/ {mg_des}%", pnec, "verde"), unsafe_allow_html=True)
+                    p3.markdown(kpi("Lucro / Peça", luc2, "verde"), unsafe_allow_html=True)
+                    p4.metric("Markup equivalente", f"{round(luc2/custo2*100,1):.1f}%")
+                    margens = list(range(5, 65, 5))
+                    precos  = [round(custo2/(1-m_/100), 2) for m_ in margens]
+                    fig = px.line(pd.DataFrame({'Margem (%)': margens, 'Preço (R$)': precos}), x='Margem (%)', y='Preço (R$)', markers=True, color_discrete_sequence=['#2d7a4f'])
+                    fig.add_vline(x=mg_des, line_dash="dash", line_color="#d97706", annotation_text=f"  {mg_des}%", annotation_font_color="#d97706")
+                    fig.update_layout(**CHART)
+                    fig.update_xaxes(gridcolor='#1e2330'); fig.update_yaxes(gridcolor='#1e2330')
+                    st.plotly_chart(fig, use_container_width=True)
+    
+    # ══ LOTE ═══════════════════════════════════════
+    elif pagina == "📦 Simulador de Lote":
+        titulo("📦", "Simulador de Lote — Kg → Peças")
+        st.info("Informe quantos kg vai comprar e veja quantas peças saem, o custo e o lucro.")
+        skus, mods, _ = get_opcoes()
+        if not skus:
+            st.warning("Nenhum SKU cadastrado.")
         else:
-            c1, c2, c3 = st.columns(3)
-            f_mod = c1.selectbox("Modelo", ['Todos'] + sorted(df_sk['modelo'].unique()), key="lote_mod")
-            f_tec = c2.selectbox("Tecido", ['Todos'] + sorted(df_sk['tecido'].unique()), key="lote_tec")
-            f_cor = c3.selectbox("Cor",    ['Todas'] + sorted(df_sk['cor'].unique()),    key="lote_cor")
-
-            df_filtrado = df_sk.copy()
-            if f_mod != 'Todos': df_filtrado = df_filtrado[df_filtrado['modelo'] == f_mod]
-            if f_tec != 'Todos': df_filtrado = df_filtrado[df_filtrado['tecido'] == f_tec]
-            if f_cor != 'Todas': df_filtrado = df_filtrado[df_filtrado['cor']    == f_cor]
-
-            st.caption(f"**{len(df_filtrado)} SKUs** selecionados para cálculo:")
-            st.dataframe(df_filtrado[['modelo','tecido','cor','tamanho','peso_g']], use_container_width=True, hide_index=True)
-
-            if len(df_filtrado) > 0:
-                if st.button(f"✨ Calcular Preços para {len(df_filtrado)} SKUs", key="btn_calc_lote"):
-                    with st.spinner("Calculando..."):
-                        resultados_lote = calcular_lote(df_filtrado.to_dict('records'))
-                        df_resultados = pd.DataFrame(resultados_lote)
-                        df_resultados['Custo Final'] = df_resultados['custo_final'].apply(fmt)
-                        df_resultados['Super Revenda'] = df_resultados['super_revenda'].apply(fmt)
-                        df_resultados['Atacado'] = df_resultados['atacado'].apply(fmt)
-                        df_resultados['Varejo'] = df_resultados['varejo'].apply(fmt)
-
-                        st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
-                        sec("Resultados do Cálculo em Lote")
-                        st.dataframe(df_resultados[['modelo','tecido','cor','tamanho','Custo Final','Super Revenda','Atacado','Varejo']], use_container_width=True, hide_index=True)
-
-                        csv = df_resultados.to_csv(index=False).encode('utf-8-sig')
-                        st.download_button(
-                            label="⬇️ Baixar Resultados (CSV)",
-                            data=csv,
-                            file_name=f"calculo_lote_{date.today()}.csv",
-                            mime="text/csv",
-                            key="download_lote_csv"
-                        )
-
-    # ══ RELATÓRIO MENSAL ═══════════════════════════
-    elif pagina == "📈 Relatório Mensal":
-        titulo("📈", "Relatório Mensal de Vendas")
-        tab_ver, tab_add = st.tabs(["Ver Relatório", "Adicionar Registro"])
-        with tab_ver:
-            st.info("Visualize o desempenho de vendas por mês.")
-            relatorio = get_relatorio_mensal()
-            if not relatorio:
-                st.warning("Nenhum registro mensal encontrado.")
+            if 'll' not in st.session_state: st.session_state.ll = [{}]
+            st.button("+ Adicionar linha", on_click=lambda: st.session_state.ll.append({}))
+            inputs = []
+            for idx in range(len(st.session_state.ll)):
+                c1,c2,c3,c4,c5,c6 = st.columns([2,2,2,2,2,1])
+                tec = c1.selectbox("Tecido", sorted(set(s['tecido'] for s in skus)), key=f"lt_t{idx}")
+                mod = c2.selectbox("Modelo", sorted(set(s['modelo'] for s in skus if s['tecido']==tec)), key=f"lt_m{idx}")
+                cr  = cores(skus, mod, tec)
+                co  = c3.selectbox("Cor", cr, key=f"lt_c{idx}") if cr else None
+                tm  = tams(skus, mod, tec, co) if co else []
+                ta__= c4.selectbox("Tamanho", tm, key=f"lt_ta{idx}") if tm else None
+                kg  = c5.number_input("Kg", 0.1, value=10.0, step=0.5, key=f"lt_k{idx}")
+                if c6.button("✕", key=f"lt_r{idx}"): st.session_state.ll.pop(idx); st.rerun()
+                if tec and mod and co and ta__: inputs.append((tec, co, mod, ta__, kg))
+            if st.button("Calcular Lote") and inputs:
+                res = []
+                for tec,co,mod,ta__,kg in inputs:
+                    r = calcular_lote(tec, co, mod, ta__, kg)
+                    if r: res.append(r)
+                    else: st.warning(f"SKU não encontrado: {mod} {tec} {co} {ta__}")
+                if res:
+                    st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+                    df = pd.DataFrame(res); ds = df.copy()
+                    for col in ['custo_tecido_lote','custo_final_peca','custo_total_lote','faturamento_sr','lucro']: ds[col] = ds[col].apply(fmt)
+                    ds['markup_pct'] = ds['markup_pct'].apply(fpct); ds['margem_pct'] = ds['margem_pct'].apply(fpct)
+                    ds.columns = ['Descrição','Kg','Peso/g','Qtd','C.Tecido','C/Peça','C.Total','Fat.SR','Lucro','Markup%','Margem%']
+                    st.dataframe(ds, use_container_width=True, hide_index=True)
+                    st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+                    tkg=sum(r['kg'] for r in res); tpcs=sum(r['qtd_pecas'] for r in res)
+                    tct=sum(r['custo_total_lote'] for r in res); tft=sum(r['faturamento_sr'] for r in res)
+                    tlc=sum(r['lucro'] for r in res); mgr=tlc/tft if tft else 0
+                    c1,c2,c3,c4,c5,c6 = st.columns(6)
+                    c1.metric("Total Kg", f"{tkg:.1f}kg"); c2.metric("Total Peças", tpcs)
+                    c3.metric("Custo Total", fmt(tct)); c4.metric("Faturamento SR", fmt(tft))
+                    c5.metric("Lucro Total", fmt(tlc)); c6.metric("Margem Real", fpct(mgr))
+    
+    # ══ TABELA CLIENTE ══════════════════════════════
+    elif pagina == "📤 Tabela para Cliente":
+        titulo("📤", "Tabela de Preços para Cliente")
+        cat = catalogo_cache()
+        if not cat:
+            st.warning("Nenhum SKU cadastrado.")
+        else:
+            df = pd.DataFrame(cat)
+            c1,c2,c3 = st.columns(3)
+            mf = c1.selectbox("Modelo", ['Todos'] + sorted(df['Modelo'].unique()))
+            tf = c2.selectbox("Tecido", ['Todos'] + sorted(df['Tecido'].unique()))
+            dff = df.copy()
+            if mf != 'Todos': dff = dff[dff['Modelo']==mf]
+            if tf != 'Todos': dff = dff[dff['Tecido']==tf]
+            cf = c3.selectbox("Cor", ['Todas'] + sorted(dff['Cor'].unique()))
+            if cf != 'Todas': dff = dff[dff['Cor']==cf]
+            fx = st.radio("Faixa de Preço para o Cliente:", ["Super Revenda","Atacado","Varejo","Todas as Faixas"], horizontal=True)
+            st.caption(f"{len(dff)} produtos — Faixa: {fx}")
+            ds = dff.copy()
+            if fx == "Todas as Faixas":
+                for c in ['Super Revenda','Atacado','Varejo']: ds[c] = ds[c].apply(fmt)
+                cols = ['Modelo','Cor','Tecido','Tamanho','Super Revenda','Atacado','Varejo']
             else:
-                df_rel = pd.DataFrame(relatorio)
-                df_rel['mes_ano'] = pd.to_datetime(df_rel['mes_ano']).dt.strftime('%Y-%m')
-                df_rel['valor_total'] = df_rel['valor_total'].apply(fmt)
-                st.dataframe(df_rel[['mes_ano', 'quantidade_vendida', 'valor_total']], use_container_width=True, hide_index=True)
-
-                # Gráfico de Vendas por Mês
-                sec("Vendas por Mês")
-                df_chart = pd.DataFrame(relatorio)
-                df_chart['mes_ano'] = pd.to_datetime(df_chart['mes_ano'])
-                fig = px.line(df_chart, x='mes_ano', y='valor_total', markers=True,
-                              labels={'mes_ano': 'Mês/Ano', 'valor_total': 'Valor Total (R$)'})
-                fig.update_layout(**CHART, showlegend=False)
-                fig.update_xaxes(gridcolor='#1e2330', tickfont=dict(size=10), dtick="M1", tickformat="%Y-%m")
-                fig.update_yaxes(gridcolor='#1e2330', tickfont=dict(size=10))
-                st.plotly_chart(fig, use_container_width=True)
-
-                # Botão de exclusão
-                st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
-                sec("Excluir Registro Mensal")
-                meses_disponiveis = sorted(df_rel['mes_ano'].tolist(), reverse=True)
-                mes_excluir = st.selectbox("Selecione o Mês/Ano para excluir", [''] + meses_disponiveis, key="sel_mes_excluir")
-                if mes_excluir:
-                    if st.button(f"🗑️ Excluir Registro de {mes_excluir}", key="btn_excluir_mes"):
-                        delete_registro_mensal(mes_excluir)
-                        st.success(f"Registro de {mes_excluir} excluído com sucesso!"); st.rerun()
-        with tab_add:
-            st.info("Adicione um novo registro de vendas para um mês específico.")
-            c1, c2, c3 = st.columns(3)
-            mes_ano_input = c1.text_input("Mês/Ano (AAAA-MM)", value=date.today().strftime('%Y-%m'), key="add_mes_ano")
-            qtd_vendida = c2.number_input("Quantidade Vendida", min_value=0, value=0, step=1, key="add_qtd_vendida")
-            valor_total = c3.number_input("Valor Total (R$)", min_value=0.0, value=0.0, step=0.01, key="add_valor_total")
-
-            if st.button("➕ Adicionar Registro Mensal", key="btn_add_registro_mensal"):
-                if not mes_ano_input:
-                    st.error("O campo Mês/Ano é obrigatório.")
+                ds['Preço'] = ds[fx].apply(fmt)
+                cols = ['Modelo','Cor','Tecido','Tamanho','Preço']
+            st.dataframe(ds[cols], use_container_width=True, hide_index=True)
+            st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
+            cp, cw, cc_ = st.columns(3)
+            with cp:
+                if st.button("Gerar PDF para Cliente"):
+                    from pdf_gerador import gerar_pdf_tabela_precos
+                    dados_pdf = []
+                    for _, row in dff.iterrows():
+                        if fx == "Todas as Faixas":
+                            dados_pdf.append({'Modelo':row['Modelo'],'Tecido':row['Tecido'],'Cor':row['Cor'],'Tamanho':row['Tamanho'],'Super Revenda':row['Super Revenda'],'Atacado':row['Atacado'],'Varejo':row['Varejo']})
+                        else:
+                            dados_pdf.append({'Modelo':row['Modelo'],'Tecido':row['Tecido'],'Cor':row['Cor'],'Tamanho':row['Tamanho'],'Faixa':fx,'Preço':row[fx]})
+                    with st.spinner("Gerando PDF..."):
+                        pdf = gerar_pdf_tabela_precos(dados_pdf, f"Modelo: {mf} | Tecido: {tf} | Cor: {cf} | Faixa: {fx}")
+                    st.download_button("⬇️ Baixar PDF", pdf, file_name=f"tabela_cliente_{date.today()}.pdf", mime="application/pdf")
+            with cw:
+                if st.button("Gerar Texto WhatsApp"):
+                    lns = ["*Tabela de Preços — Prates Sublimação* 🧵", ""]
+                    for _, row in dff.iterrows():
+                        if fx == "Todas as Faixas":
+                            lns.append(f"• {row['Modelo']} {row['Tecido']} {row['Cor']} ({row['Tamanho']}): SR {fmt(row['Super Revenda'])} | AT {fmt(row['Atacado'])} | VR {fmt(row['Varejo'])}")
+                        else:
+                            lns.append(f"• {row['Modelo']} {row['Tecido']} {row['Cor']} ({row['Tamanho']}): {fmt(row[fx])}")
+                    lns += ["", "Pix ou Dinheiro | Retirada local — Macaé/RJ 😊"]
+                    st.text_area("Copie:", "\n".join(lns), height=220)
+            with cc_:
+                if fx != "Todas as Faixas":
+                    dff_csv = dff[['Modelo','Cor','Tecido','Tamanho',fx]].copy(); dff_csv.columns = ['Modelo','Cor','Tecido','Tamanho','Preço']
                 else:
-                    try:
-                        datetime.strptime(mes_ano_input, '%Y-%m') # Valida o formato
-                        add_registro_mensal(mes_ano_input, qtd_vendida, valor_total)
-                        st.success(f"Registro para {mes_ano_input} adicionado com sucesso!"); st.rerun()
-                    except ValueError:
-                        st.error("Formato de Mês/Ano inválido. Use AAAA-MM (ex: 2026-04).")
-
-    # ══ PARÂMETROS ═════════════════════════════════
-    elif pagina == "⚙️ Parâmetros":
-        titulo("⚙️", "Configurações e Parâmetros")
-        st.info("Ajuste os valores que afetam os cálculos de preço e o comportamento do sistema.")
-        params = get_parametros()
-
-        c1, c2, c3 = st.columns(3)
-
-        # Parâmetros de Custo
-        sec("Custos e Margens")
-        novo_frete_pct = c1.number_input("Frete (%)", 0.0, 1.0, float(params.get('frete_pct', 0.05)), 0.01, format="%.2f", key="param_frete")
-        novo_outros_pct = c2.number_input("Outros Custos (%)", 0.0, 1.0, float(params.get('outros_pct', 0.03)), 0.01, format="%.2f", key="param_outros")
-        novo_embalagem = c3.number_input("Custo Embalagem (R$)", 0.0, value=float(params.get('embalagem', 0.0)), step=0.1, key="param_embalagem")
-
-        novo_margem_atacado = c1.number_input("Margem Atacado (%)", 0.0, 1.0, float(params.get('margem_atacado', 0.35)), 0.01, format="%.2f", key="param_atacado")
-        novo_margem_varejo = c2.number_input("Margem Varejo (%)", 0.0, 1.0, float(params.get('margem_varejo', 0.50)), 0.01, format="%.2f", key="param_varejo")
-
-        # Parâmetros de Sistema (ex: para futuras funcionalidades)
-        st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
-        sec("Configurações do Sistema")
-        # Exemplo de um parâmetro de texto
-        novo_nome_empresa = st.text_input("Nome da Empresa", value=params.get('nome_empresa', 'Prates Sublimação'), key="param_nome_empresa")
-
-        if st.button("💾 Salvar Parâmetros", key="btn_salvar_parametros"):
-            set_parametro('frete_pct', novo_frete_pct)
-            set_parametro('outros_pct', novo_outros_pct)
-            set_parametro('embalagem', novo_embalagem)
-            set_parametro('margem_atacado', novo_margem_atacado)
-            set_parametro('margem_varejo', novo_margem_varejo)
-            set_parametro('nome_empresa', novo_nome_empresa)
-            catalogo_cache.clear() # Limpa o cache para recalcular com novos parâmetros
-            st.success("Parâmetros atualizados com sucesso!"); st.rerun()
-
-    # ══ FORNECEDORES / FACÇÃO / SKUs ════════════════
-    elif pagina == "📦 Produtos e Custos":
-        titulo("📦", "Gestão de Produtos e Custos")
-        tf, tfa, ts = st.tabs(["🚚 Fornecedores de Tecido", "🧵 Faccionistas (Costura)", "👕 SKUs (Produtos)"])
+                    dff_csv = dff[['Modelo','Cor','Tecido','Tamanho','Super Revenda','Atacado','Varejo']].copy()
+                st.download_button("⬇️ Exportar CSV", dff_csv.to_csv(index=False).encode('utf-8-sig'), file_name=f"tabela_{date.today()}.csv", mime="text/csv")
+    
+    # ══ RELATÓRIO MENSAL ════════════════════════════
+    elif pagina == "📈 Relatório Mensal":
+        titulo("📈", "Relatório Mensal")
+        ms = st.sidebar.text_input("Mês (AAAA-MM)", datetime.today().strftime('%Y-%m'))
+        tp, tr, ta = st.tabs(["Painel do Mês", "Registros", "Novo Registro"])
+        with tp:
+            regs = get_relatorio_mensal(ms)
+            if not regs:
+                st.info(f"Nenhum registro para {ms}.")
+            else:
+                df = pd.DataFrame(regs)
+                rec=df['receita'].sum(); cst=df['custo'].sum(); luc=df['lucro'].sum()
+                c1,c2,c3,c4,c5,c6 = st.columns(6)
+                c1.metric("Pedidos", len(df)); c2.metric("Peças", int(df['qtd_pecas'].sum()))
+                c3.metric("Receita", fmt(rec)); c4.metric("Custo", fmt(cst))
+                c5.metric("Lucro", fmt(luc)); c6.metric("Margem", fpct(luc/rec if rec else 0))
+                col1, col2 = st.columns(2)
+                with col1:
+                    dm = df.groupby('modelo')['receita'].sum().reset_index()
+                    fig = px.bar(dm, x='modelo', y='receita', color='modelo', color_discrete_sequence=['#2d7a4f','#2563eb','#d97706','#7c3aed'])
+                    fig.update_layout(**CHART, title="Receita por Modelo", showlegend=False)
+                    fig.update_xaxes(gridcolor='#1e2330'); fig.update_yaxes(gridcolor='#1e2330')
+                    st.plotly_chart(fig, use_container_width=True)
+                with col2:
+                    df2 = df.groupby('faixa')['receita'].sum().reset_index()
+                    fig2 = px.pie(df2, names='faixa', values='receita', hole=0.5, color_discrete_sequence=['#2d7a4f','#2563eb','#d97706'])
+                    fig2.update_layout(**CHART, title="Receita por Faixa")
+                    st.plotly_chart(fig2, use_container_width=True)
+        with tr:
+            regs = get_relatorio_mensal(ms)
+            if not regs:
+                st.info("Nenhum registro.")
+            else:
+                df = pd.DataFrame(regs)
+                st.dataframe(df[['data','numero_pedido','modelo','faixa','tecido','qtd_pecas','receita','custo','lucro','observacao']], use_container_width=True, hide_index=True)
+                rid = st.selectbox("Excluir registro ID:", df['id'].tolist())
+                if st.button("Excluir"): delete_registro_mensal(rid); st.rerun()
+                st.download_button("⬇️ CSV", df.to_csv(index=False).encode('utf-8-sig'), file_name=f"rel_{ms}.csv", mime="text/csv")
+        with ta:
+            skus, mods, _ = get_opcoes()
+            c1,c2,c3 = st.columns(3)
+            dr=c1.date_input("Data",date.today()); nr=c2.text_input("Nº Pedido"); fx_r=c3.selectbox("Faixa",["Super Revenda","Atacado","Varejo"])
+            c4,c5,c6 = st.columns(3)
+            mr_=c4.selectbox("Modelo",mods); tr_=c5.text_input("Tecido"); qr=c6.number_input("Qtd",1,value=10)
+            c7,c8,c9 = st.columns(3)
+            cor_r=c7.text_input("Cor"); rr=c8.number_input("Receita (R$)",0.0,step=0.01); cr_=c9.number_input("Custo (R$)",0.0,step=0.01)
+            vr_=c1.text_input("Variante"); obs_r=st.text_area("Observação")
+            if st.button("Salvar Registro"):
+                add_registro_mensal(str(dr),nr,mr_,fx_r,vr_,tr_,qr,cor_r,rr,cr_,round(rr-cr_,2),obs_r)
+                st.success("Salvo!"); st.rerun()
+    
+    # ══ CONFIGURAÇÕES ════════════════════════════════
+    elif pagina == "⚙️ Configurações":
+        titulo("⚙️", "Configurações")
+        tp, tf, tfa, ts = st.tabs(["Parâmetros Globais","Fornecedores","Faccionistas","SKUs"])
+        with tp:
+            st.info("Altere aqui → todos os SKUs recalculam automaticamente.")
+            p = get_parametros()
+            c1, c2 = st.columns(2)
+            with c1:
+                fr = st.number_input("Frete (%)", 0.0,1.0,float(p.get('frete_pct',0.05)),0.01,format="%.2f")
+                ou = st.number_input("Outros Custos (%)", 0.0,1.0,float(p.get('outros_pct',0.03)),0.01,format="%.2f")
+                em = st.number_input("Embalagem/peça (R$)", 0.0,value=float(p.get('embalagem',0.0)),step=0.5)
+            with c2:
+                ms_= st.number_input("Margem Super Revenda (%)", 0.0,5.0,float(p.get('margem_sr',0.20)),0.01,format="%.2f")
+                ma_= st.number_input("Margem Atacado (%)", 0.0,5.0,float(p.get('margem_atacado',0.35)),0.01,format="%.2f")
+                mv_= st.number_input("Margem Varejo (%)", 0.0,5.0,float(p.get('margem_varejo',0.50)),0.01,format="%.2f")
+            if st.button("Salvar Parâmetros"):
+                for k,v in [('frete_pct',fr),('outros_pct',ou),('embalagem',em),('margem_sr',ms_),('margem_atacado',ma_),('margem_varejo',mv_)]: set_parametro(k,v)
+                catalogo_cache.clear(); st.success("Parâmetros salvos!"); st.rerun()
         with tf:
-            st.info("Gerencie os fornecedores de tecido e seus preços por quilo.")
-            for f in get_fornecedores():
-                with st.expander(f"{f['nome']} — {f['tecido']}   |   {fmt(f['preco_kg'])}/kg"):
-                    c1,c2,c3 = st.columns(3)
-                    fn=c1.text_input("Nome",f['nome'],key=f"fn{f['id']}")
-                    ft=c2.text_input("Tecido",f['tecido'],key=f"ft{f['id']}")
-                    fp=c3.number_input("Preço/kg",0.0,value=float(f['preco_kg']),step=0.1,key=f"fp{f['id']}")
-                    if st.button("Salvar",key=f"sfor{f['id']}"):
-                        ant=f['preco_kg']
-                        update_fornecedor(f['id'],{'nome':fn,'tecido':ft,'preco_kg':fp})
-                        novo=get_preco_kg(ft)
-                        if abs(novo-ant)>0.001: add_historico('Tecido',ft,ant,novo,fn,'')
+            st.info("Atualize o preço/kg aqui. O Fornecedor Ativo é usado em todos os cálculos.")
+            for fo in get_fornecedores():
+                with st.expander(f"{fo['tecido']} — {fo['cor']}   |   Ativo: {fo['fornecedor_ativo']}   |   {fmt(get_preco_kg(fo['tecido'],fo['cor']))}/kg"):
+                    c1,c2,c3,c4 = st.columns(4)
+                    f1n=c1.text_input("Fornecedor 1",fo['f1_nome'],key=f"f1n{fo['id']}")
+                    f1p=c2.number_input("Preço F1",0.0,value=float(fo['f1_preco']),step=0.1,key=f"f1p{fo['id']}")
+                    f2n=c3.text_input("Fornecedor 2",fo['f2_nome'],key=f"f2n{fo['id']}")
+                    f2p=c4.number_input("Preço F2",0.0,value=float(fo['f2_preco']),step=0.1,key=f"f2p{fo['id']}")
+                    c5,c6,c7 = st.columns(3)
+                    f3n=c5.text_input("Fornecedor 3",fo['f3_nome'],key=f"f3n{fo['id']}")
+                    f3p=c6.number_input("Preço F3",0.0,value=float(fo['f3_preco']),step=0.1,key=f"f3p{fo['id']}")
+                    op=['Mais Barato',f1n,f2n,f3n]; ix=op.index(fo['fornecedor_ativo']) if fo['fornecedor_ativo'] in op else 0
+                    fa_=c7.selectbox("Ativo",op,index=ix,key=f"fa{fo['id']}")
+                    if st.button("Salvar",key=f"sf{fo['id']}"):
+                        ant=get_preco_kg(fo['tecido'],fo['cor'])
+                        update_fornecedor(fo['id'],{'f1_nome':f1n,'f1_preco':f1p,'f2_nome':f2n,'f2_preco':f2p,'f3_nome':f3n,'f3_preco':f3p,'fornecedor_ativo':fa_})
+                        novo=get_preco_kg(fo['tecido'],fo['cor'])
+                        if abs(novo-ant)>0.001: add_historico('Tecido',f"{fo['tecido']} | {fo['cor']}",ant,novo,fa_,'')
                         catalogo_cache.clear(); st.success("Atualizado!"); st.rerun()
             st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
-            sec("Adicionar Novo Fornecedor")
+            sec("Adicionar novo Tecido/Cor")
             c1,c2,c3 = st.columns(3)
-            nt=c1.text_input("Tecido",key="nt")
-            nc=c2.text_input("Nome",key="nc")
-            np_=c3.number_input("Preço/kg)",0.0,step=0.1,key="np")
+            nt=c1.text_input("Tecido",key="nt"); nc=c2.text_input("Cor",key="nc"); np_=c3.number_input("Preço F1 (R$/kg)",0.0,step=0.1,key="np")
             if st.button("Adicionar") and nt and nc:
                 ok=add_fornecedor(nt,nc,'Fornecedor 1',np_)
                 st.success("Adicionado!") if ok else st.error("Já existe."); st.rerun()
         with tfa:
-            st.info("Atualize o preço da costura aqui. A Faccionista Ativa é usada em todos os cálculos.")
             for f in get_faccionistas():
                 with st.expander(f"{f['modelo']}   |   Ativa: {f['faccionista_ativa']}   |   {fmt(get_preco_costura(f['modelo']))}/peça"):
                     c1,c2,c3,c4 = st.columns(4)
@@ -605,7 +707,7 @@ else:
                 if st.button("💾 Salvar SKU", key="btn_add_sku"):
                     upsert_sku(ms2, ts2, cs2, tms2, ps2); catalogo_cache.clear()
                     st.success("SKU salvo!"); st.rerun()
-
+    
     # ══ HISTÓRICO ════════════════════════════════════
     elif pagina == "📋 Histórico de Preços":
         titulo("📋", "Histórico de Preços")
@@ -621,23 +723,23 @@ else:
                 st.download_button("⬇️ CSV", dh.to_csv(index=False).encode('utf-8-sig'), file_name=f"historico_{date.today()}.csv", mime="text/csv")
         with ta:
             c1,c2 = st.columns(2)
-            th=c1.selectbox("Tipo",["Tecido","Costura"], key="hist_tipo"); tmh=c2.text_input("Tecido/Modelo", key="hist_tec_mod")
+            th=c1.selectbox("Tipo",["Tecido","Costura"]); tmh=c2.text_input("Tecido/Modelo")
             c3,c4,c5 = st.columns(3)
-            ph1=c3.number_input("Preço Anterior",0.0,step=0.01, key="hist_preco_ant"); ph2=c4.number_input("Preço Novo",0.0,step=0.01, key="hist_preco_novo"); fh=c5.text_input("Fornecedor/Faccionista", key="hist_forn_fac")
-            mh=st.text_input("Motivo", key="hist_motivo")
-            if st.button("Registrar", key="btn_registrar_hist") and tmh and ph2:
+            ph1=c3.number_input("Preço Anterior",0.0,step=0.01); ph2=c4.number_input("Preço Novo",0.0,step=0.01); fh=c5.text_input("Fornecedor/Faccionista")
+            mh=st.text_input("Motivo")
+            if st.button("Registrar") and tmh and ph2:
                 add_historico(th,tmh,ph1,ph2,fh,mh); st.success("Registrado!"); st.rerun()
-
+    
     # ══ IMPORTAR ═════════════════════════════════════
     elif pagina == "📥 Importar Planilha":
         titulo("📥", "Importar Planilha Excel")
         st.info("Faça upload do .xlsx para importar SKUs, fornecedores, faccionistas e parâmetros.")
-        arq = st.file_uploader("Selecione o arquivo .xlsx", type=['xlsx'], key="import_file_uploader")
+        arq = st.file_uploader("Selecione o arquivo .xlsx", type=['xlsx'])
         if arq:
             import tempfile, os as _os
             with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
                 tmp.write(arq.read()); tp=tmp.name
-            if st.button("Importar", key="btn_importar_xlsx"):
+            if st.button("Importar"):
                 from importador import importar_xlsx
                 with st.spinner("Importando..."):
                     res = importar_xlsx(tp)
@@ -650,96 +752,92 @@ else:
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("SKUs", len(get_skus())); c2.metric("Fornecedores", len(get_fornecedores()))
         c3.metric("Faccionistas", len(get_faccionistas())); c4.metric("Histórico", len(get_historico()))
-
+    
     # ══ USUÁRIOS ═════════════════════════════════════
     elif pagina == "👥 Usuários":
-        # Acesso restrito ao admin
-        if nivel != 'admin':
-            st.error("Você não tem permissão para acessar esta página.")
-        else:
-            titulo("👥", "Gestão de Usuários")
-            tab_lista, tab_novo, tab_minha_conta = st.tabs(["👥 Usuários", "➕ Novo Usuário", "🔑 Minha Conta"])
-
-            with tab_lista:
-                usuarios = get_usuarios()
-                if not usuarios:
-                    st.info("Nenhum usuário cadastrado.")
+        titulo("👥", "Gestão de Usuários")
+        tab_lista, tab_novo, tab_minha_conta = st.tabs(["👥 Usuários", "➕ Novo Usuário", "🔑 Minha Conta"])
+    
+        with tab_lista:
+            usuarios = get_usuarios()
+            if not usuarios:
+                st.info("Nenhum usuário cadastrado.")
+            else:
+                for u in usuarios:
+                    ativo_label = "🟢 Ativo" if u['ativo'] else "🔴 Inativo"
+                    nivel_color = {"admin": "#2d7a4f", "gerente": "#2563eb", "vendedor": "#d97706", "operador": "#7c3aed"}.get(u['nivel'], "#6b7280")
+                    with st.expander(f"{u['nome']} — {u['email']}   |   {ativo_label}   |   Nível: {u['nivel']}"):
+                        c1, c2, c3 = st.columns(3)
+                        novo_nome  = c1.text_input("Nome",  u['nome'],  key=f"un_{u['id']}")
+                        novo_email = c2.text_input("Email", u['email'], key=f"ue_{u['id']}")
+                        novo_nivel = c3.selectbox("Nível", ["admin","gerente","vendedor","operador"],
+                                                  index=["admin","gerente","vendedor","operador"].index(u['nivel']),
+                                                  key=f"uv_{u['id']}")
+                        nova_senha = st.text_input("Nova Senha (deixe vazio para não alterar)", type="password", key=f"us_{u['id']}")
+    
+                        ca, cb, cc = st.columns(3)
+                        with ca:
+                            if st.button("💾 Salvar", key=f"usave_{u['id']}"):
+                                dados = {'nome': novo_nome, 'email': novo_email.lower(), 'nivel': novo_nivel}
+                                if nova_senha:
+                                    dados['senha_hash'] = hash_senha(nova_senha)
+                                update_usuario(u['id'], dados)
+                                st.success("Atualizado!"); st.rerun()
+                        with cb:
+                            label_ativo = "🔴 Desativar" if u['ativo'] else "🟢 Ativar"
+                            if st.button(label_ativo, key=f"utog_{u['id']}"):
+                                update_usuario(u['id'], {'ativo': not u['ativo']}); st.rerun()
+                        with cc:
+                            if u['nivel'] != 'admin' or sum(1 for x in usuarios if x['nivel'] == 'admin') > 1:
+                                if st.button("🗑️ Excluir", key=f"udel_{u['id']}"):
+                                    st.session_state[f'confirm_del_user_{u["id"]}'] = True
+                            if st.session_state.get(f'confirm_del_user_{u["id"]}'):
+                                st.warning(f"Confirma exclusão de **{u['nome']}**?")
+                                cd1, cd2 = st.columns(2)
+                                with cd1:
+                                    if st.button("✅ Confirmar", key=f"udelok_{u['id']}"):
+                                        delete_usuario(u['id'])
+                                        st.session_state.pop(f'confirm_del_user_{u["id"]}', None)
+                                        st.success("Excluído!"); st.rerun()
+                                with cd2:
+                                    if st.button("❌ Cancelar", key=f"udelno_{u['id']}"):
+                                        st.session_state.pop(f'confirm_del_user_{u["id"]}', None); st.rerun()
+    
+        with tab_novo:
+            st.info("Crie um novo usuário com nível de acesso definido.")
+            c1, c2 = st.columns(2)
+            nn = c1.text_input("Nome completo", key="nn")
+            ne = c2.text_input("E-mail", key="ne")
+            c3, c4 = st.columns(2)
+            nv = c3.selectbox("Nível", ["gerente","vendedor","operador","admin"], key="nv")
+            ns = c4.text_input("Senha", type="password", key="ns")
+            if st.button("➕ Criar Usuário"):
+                if not nn or not ne or not ns:
+                    st.error("Preencha todos os campos.")
                 else:
-                    for u in usuarios:
-                        ativo_label = "🟢 Ativo" if u['ativo'] else "🔴 Inativo"
-                        nivel_color = {"admin": "#2d7a4f", "gerente": "#2563eb", "vendedor": "#d97706", "operador": "#7c3aed"}.get(u['nivel'], "#6b7280")
-                        with st.expander(f"{u['nome']} — {u['email']}   |   {ativo_label}   |   Nível: {u['nivel']}"):
-                            c1, c2, c3 = st.columns(3)
-                            novo_nome  = c1.text_input("Nome",  u['nome'],  key=f"un_{u['id']}")
-                            novo_email = c2.text_input("Email", u['email'], key=f"ue_{u['id']}")
-                            novo_nivel = c3.selectbox("Nível", ["admin","gerente","vendedor","operador"],
-                                                      index=["admin","gerente","vendedor","operador"].index(u['nivel']),
-                                                      key=f"uv_{u['id']}")
-                            nova_senha = st.text_input("Nova Senha (deixe vazio para não alterar)", type="password", key=f"us_{u['id']}")
-
-                            ca, cb, cc = st.columns(3)
-                            with ca:
-                                if st.button("💾 Salvar", key=f"usave_{u['id']}"):
-                                    dados = {'nome': novo_nome, 'email': novo_email.lower(), 'nivel': novo_nivel}
-                                    if nova_senha:
-                                        dados['senha_hash'] = hash_senha(nova_senha)
-                                    update_usuario(u['id'], dados)
-                                    st.success("Atualizado!"); st.rerun()
-                            with cb:
-                                label_ativo = "🔴 Desativar" if u['ativo'] else "🟢 Ativar"
-                                if st.button(label_ativo, key=f"utog_{u['id']}"):
-                                    update_usuario(u['id'], {'ativo': not u['ativo']}); st.rerun()
-                            with cc:
-                                if u['nivel'] != 'admin' or sum(1 for x in usuarios if x['nivel'] == 'admin') > 1:
-                                    if st.button("🗑️ Excluir", key=f"udel_{u['id']}"):
-                                        st.session_state[f'confirm_del_user_{u["id"]}'] = True
-                                if st.session_state.get(f'confirm_del_user_{u["id"]}'):
-                                    st.warning(f"Confirma exclusão de **{u['nome']}**?")
-                                    cd1, cd2 = st.columns(2)
-                                    with cd1:
-                                        if st.button("✅ Confirmar", key=f"udelok_{u['id']}"):
-                                            delete_usuario(u['id'])
-                                            st.session_state.pop(f'confirm_del_user_{u["id"]}', None)
-                                            st.success("Excluído!"); st.rerun()
-                                    with cd2:
-                                        if st.button("❌ Cancelar", key=f"udelno_{u['id']}"):
-                                            st.session_state.pop(f'confirm_del_user_{u["id"]}', None); st.rerun()
-
-            with tab_novo:
-                st.info("Crie um novo usuário com nível de acesso definido.")
-                c1, c2 = st.columns(2)
-                nn = c1.text_input("Nome completo", key="nn")
-                ne = c2.text_input("E-mail", key="ne")
-                c3, c4 = st.columns(2)
-                nv = c3.selectbox("Nível", ["gerente","vendedor","operador","admin"], key="nv")
-                ns = c4.text_input("Senha", type="password", key="ns")
-                if st.button("➕ Criar Usuário"):
-                    if not nn or not ne or not ns:
-                        st.error("Preencha todos os campos.")
-                    else:
-                        ok = add_usuario(nn, ne, hash_senha(ns), nv)
-                        if ok: st.success(f"Usuário **{nn}** criado com sucesso!"); st.rerun()
-                        else:  st.error("E-mail já cadastrado.")
-
-            with tab_minha_conta:
-                st.info("Atualize seus próprios dados de acesso.")
-                c1, c2 = st.columns(2)
-                mc_nome  = c1.text_input("Nome",  usuario['nome'],  key="mc_nome")
-                mc_email = c2.text_input("Email", usuario['email'], key="mc_email")
-                mc_senha_atual = st.text_input("Senha Atual", type="password", key="mc_sa")
-                c3, c4 = st.columns(2)
-                mc_nova  = c3.text_input("Nova Senha", type="password", key="mc_ns")
-                mc_conf  = c4.text_input("Confirmar Nova Senha", type="password", key="mc_nc")
-                if st.button("💾 Salvar Minha Conta"):
-                    # A função verificar_senha já está importada do auth.py
-                    if not verificar_senha(mc_senha_atual, usuario['senha_hash']):
-                        st.error("Senha atual incorreta.")
-                    elif mc_nova and mc_nova != mc_conf:
-                        st.error("Nova senha e confirmação não conferem.")
-                    else:
-                        dados = {'nome': mc_nome, 'email': mc_email.lower()}
-                        if mc_nova:
-                            dados['senha_hash'] = hash_senha(mc_nova)
-                        update_usuario(usuario['id'], dados)
-                        st.session_state['usuario_logado'].update(dados)
-                        st.success("Dados atualizados com sucesso!"); st.rerun()
+                    ok = add_usuario(nn, ne, hash_senha(ns), nv)
+                    if ok: st.success(f"Usuário **{nn}** criado com sucesso!"); st.rerun()
+                    else:  st.error("E-mail já cadastrado.")
+    
+        with tab_minha_conta:
+            st.info("Atualize seus próprios dados de acesso.")
+            c1, c2 = st.columns(2)
+            mc_nome  = c1.text_input("Nome",  usuario['nome'],  key="mc_nome")
+            mc_email = c2.text_input("Email", usuario['email'], key="mc_email")
+            mc_senha_atual = st.text_input("Senha Atual", type="password", key="mc_sa")
+            c3, c4 = st.columns(2)
+            mc_nova  = c3.text_input("Nova Senha", type="password", key="mc_ns")
+            mc_conf  = c4.text_input("Confirmar Nova Senha", type="password", key="mc_nc")
+            if st.button("💾 Salvar Minha Conta"):
+                from auth import verificar_senha
+                if not verificar_senha(mc_senha_atual, usuario['senha_hash']):
+                    st.error("Senha atual incorreta.")
+                elif mc_nova and mc_nova != mc_conf:
+                    st.error("Nova senha e confirmação não conferem.")
+                else:
+                    dados = {'nome': mc_nome, 'email': mc_email.lower()}
+                    if mc_nova:
+                        dados['senha_hash'] = hash_senha(mc_nova)
+                    update_usuario(usuario['id'], dados)
+                    st.session_state['usuario_logado'].update(dados)
+                    st.success("Dados atualizados com sucesso!"); st.rerun()
