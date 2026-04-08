@@ -1,12 +1,15 @@
 """
 database.py — Prates Sublimação
-Gerencia o banco SQLite: criação das tabelas e todas as operações CRUD.
+Banco de dados Supabase (PostgreSQL).
 """
 
-import sqlite3
+from supabase import create_client, Client
 from datetime import datetime
 
-DB_PATH = "prates_sublimacao.db"
+SUPABASE_URL = "https://gzoiiopchxylqsjipkkh.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6b2lpb3BjaHh5bHFzamlwa2toIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ5MDkxMSwiZXhwIjoyMDkxMDY2OTExfQ.lDDdlx964VypyvQv6IUVvoZqAZrZx6x3Fg4wzCdfvQY"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 SKUS_PADRAO = [
     ('Adulto','PP','Amarelo Canário','P-GG',235.0),('Adulto','PP','Amarelo Canário','XGG',309.0),
@@ -97,419 +100,195 @@ FORNECEDORES_PADRAO = [
     ('PP','Charmute',24.44),('PP','Cinza Mescla',24.46),
 ]
 
-# ─────────────────────────────────────────
-# CONEXÃO
-# ─────────────────────────────────────────
-def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
-
-# ─────────────────────────────────────────
-# INICIALIZAÇÃO
-# ─────────────────────────────────────────
 def init_db():
-    conn = get_conn()
-    c = conn.cursor()
+    try:
+        defaults = {
+            'costura_branco': 4.0, 'costura_outras': 4.0,
+            'frete_pct': 0.05, 'outros_pct': 0.03,
+            'embalagem': 0.0, 'margem_sr': 0.20,
+            'margem_atacado': 0.35, 'margem_varejo': 0.50,
+        }
+        existentes = supabase.table('parametros').select('chave').execute().data
+        chaves_existentes = {r['chave'] for r in existentes}
+        for k, v in defaults.items():
+            if k not in chaves_existentes:
+                supabase.table('parametros').insert({'chave': k, 'valor': v}).execute()
 
-    c.executescript("""
-    CREATE TABLE IF NOT EXISTS parametros (
-        chave TEXT PRIMARY KEY,
-        valor REAL
-    );
+        fac_existentes = supabase.table('faccionistas').select('modelo').execute().data
+        modelos_existentes = {r['modelo'] for r in fac_existentes}
+        for modelo in ['Adulto', 'Baby Look', 'Infantil', 'Regata']:
+            if modelo not in modelos_existentes:
+                supabase.table('faccionistas').insert({'modelo': modelo}).execute()
 
-    CREATE TABLE IF NOT EXISTS fornecedores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tecido TEXT NOT NULL,
-        cor TEXT NOT NULL,
-        chave TEXT UNIQUE NOT NULL,
-        f1_nome TEXT DEFAULT 'Importline',
-        f1_preco REAL DEFAULT 0,
-        f2_nome TEXT DEFAULT 'Fornecedor 2',
-        f2_preco REAL DEFAULT 0,
-        f3_nome TEXT DEFAULT 'Fornecedor 3',
-        f3_preco REAL DEFAULT 0,
-        fornecedor_ativo TEXT DEFAULT 'Mais Barato'
-    );
+        forn_existentes = supabase.table('fornecedores').select('chave').execute().data
+        chaves_forn = {r['chave'] for r in forn_existentes}
+        for tecido, cor, preco in FORNECEDORES_PADRAO:
+            chave = f"{tecido}|{cor}"
+            if chave not in chaves_forn:
+                supabase.table('fornecedores').insert({
+                    'tecido': tecido, 'cor': cor, 'chave': chave,
+                    'f1_nome': 'Importline', 'f1_preco': preco,
+                    'fornecedor_ativo': 'Mais Barato'
+                }).execute()
 
-    CREATE TABLE IF NOT EXISTS faccionistas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        modelo TEXT UNIQUE NOT NULL,
-        f1_nome TEXT DEFAULT 'Faccionista 1',
-        f1_preco REAL DEFAULT 4.0,
-        f2_nome TEXT DEFAULT 'Faccionista 2',
-        f2_preco REAL DEFAULT 0,
-        f3_nome TEXT DEFAULT 'Faccionista 3',
-        f3_preco REAL DEFAULT 0,
-        faccionista_ativa TEXT DEFAULT 'Mais Barata'
-    );
-
-    CREATE TABLE IF NOT EXISTS skus (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        modelo TEXT NOT NULL,
-        tecido TEXT NOT NULL,
-        cor TEXT NOT NULL,
-        tamanho TEXT NOT NULL,
-        peso_g REAL NOT NULL,
-        UNIQUE(modelo, tecido, cor, tamanho)
-    );
-
-    CREATE TABLE IF NOT EXISTS pedidos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        numero TEXT NOT NULL,
-        cliente TEXT DEFAULT '',
-        data TEXT,
-        faixa_preco TEXT DEFAULT 'Super Revenda',
-        status TEXT DEFAULT 'Aberto',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS pedido_itens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pedido_id INTEGER,
-        modelo TEXT,
-        tecido TEXT,
-        cor TEXT,
-        tamanho TEXT,
-        qtd INTEGER,
-        preco_unit REAL,
-        custo_unit REAL,
-        FOREIGN KEY(pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS relatorio_mensal (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data TEXT,
-        numero_pedido TEXT,
-        modelo TEXT,
-        faixa TEXT,
-        variante_faixa TEXT,
-        tecido TEXT,
-        qtd_pecas INTEGER,
-        cor_principal TEXT,
-        receita REAL DEFAULT 0,
-        custo REAL DEFAULT 0,
-        lucro REAL DEFAULT 0,
-        observacao TEXT DEFAULT ''
-    );
-
-    CREATE TABLE IF NOT EXISTS historico (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data TEXT,
-        tipo TEXT,
-        tecido_modelo TEXT,
-        preco_anterior REAL,
-        preco_novo REAL,
-        variacao_pct REAL,
-        fornecedor_faccionista TEXT,
-        motivo TEXT DEFAULT ''
-    );
-    """)
-
-    conn.commit()
-
-    # Parâmetros padrão
-    defaults = {
-        'costura_branco': 4.0, 'costura_outras': 4.0,
-        'frete_pct': 0.05, 'outros_pct': 0.03,
-        'embalagem': 0.0, 'margem_sr': 0.20,
-        'margem_atacado': 0.35, 'margem_varejo': 0.50,
-    }
-    for k, v in defaults.items():
-        c.execute('INSERT OR IGNORE INTO parametros VALUES (?,?)', (k, v))
-
-    # Faccionistas padrão
-    for modelo in ['Adulto','Baby Look','Infantil','Regata']:
-        c.execute('INSERT OR IGNORE INTO faccionistas (modelo) VALUES (?)', (modelo,))
-
-    # Fornecedores padrão
-    for tecido, cor, preco in FORNECEDORES_PADRAO:
-        chave = f"{tecido}|{cor}"
-        c.execute("""INSERT OR IGNORE INTO fornecedores
-                     (tecido,cor,chave,f1_nome,f1_preco,fornecedor_ativo)
-                     VALUES (?,?,?,'Importline',?,'Mais Barato')""",
-                  (tecido, cor, chave, preco))
-
-    # SKUs padrão
-    for row in SKUS_PADRAO:
-        c.execute('INSERT OR IGNORE INTO skus (modelo,tecido,cor,tamanho,peso_g) VALUES (?,?,?,?,?)', row)
-
-    conn.commit()
-    conn.close()
+        skus_existentes = supabase.table('skus').select('id').execute().data
+        if not skus_existentes:
+            for modelo, tecido, cor, tamanho, peso_g in SKUS_PADRAO:
+                supabase.table('skus').insert({
+                    'modelo': modelo, 'tecido': tecido, 'cor': cor,
+                    'tamanho': tamanho, 'peso_g': peso_g
+                }).execute()
+    except Exception as e:
+        pass
 
 
-# ─────────────────────────────────────────
-# PARÂMETROS
-# ─────────────────────────────────────────
 def get_parametros():
-    conn = get_conn()
-    rows = conn.execute('SELECT chave, valor FROM parametros').fetchall()
-    conn.close()
+    rows = supabase.table('parametros').select('*').execute().data
     return {r['chave']: r['valor'] for r in rows}
 
 def set_parametro(chave, valor):
-    conn = get_conn()
-    conn.execute('INSERT OR REPLACE INTO parametros VALUES (?,?)', (chave, valor))
-    conn.commit()
-    conn.close()
+    existing = supabase.table('parametros').select('chave').eq('chave', chave).execute().data
+    if existing:
+        supabase.table('parametros').update({'valor': valor}).eq('chave', chave).execute()
+    else:
+        supabase.table('parametros').insert({'chave': chave, 'valor': valor}).execute()
 
 
-# ─────────────────────────────────────────
-# FORNECEDORES
-# ─────────────────────────────────────────
 def get_fornecedores():
-    conn = get_conn()
-    rows = conn.execute('SELECT * FROM fornecedores ORDER BY tecido, cor').fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    return supabase.table('fornecedores').select('*').order('tecido').order('cor').execute().data
 
 def update_fornecedor(fid, data: dict):
-    """data pode conter: f1_nome, f1_preco, f2_nome, f2_preco, f3_nome, f3_preco, fornecedor_ativo"""
-    campos = ', '.join(f"{k}=?" for k in data)
-    conn = get_conn()
-    conn.execute(f'UPDATE fornecedores SET {campos} WHERE id=?', list(data.values()) + [fid])
-    conn.commit()
-    conn.close()
+    supabase.table('fornecedores').update(data).eq('id', fid).execute()
 
 def get_preco_kg(tecido, cor):
-    conn = get_conn()
-    row = conn.execute('SELECT * FROM fornecedores WHERE chave=?', (f"{tecido}|{cor}",)).fetchone()
-    conn.close()
-    if not row:
+    chave = f"{tecido}|{cor}"
+    rows = supabase.table('fornecedores').select('*').eq('chave', chave).execute().data
+    if not rows:
         return 0.0
-    row = dict(row)
+    row = rows[0]
     fa = row['fornecedor_ativo']
-    precos = {'Mais Barato': None, row['f1_nome']: row['f1_preco'],
-              row['f2_nome']: row['f2_preco'], row['f3_nome']: row['f3_preco']}
     if fa == 'Mais Barato':
         validos = [p for p in [row['f1_preco'], row['f2_preco'], row['f3_preco']] if p and p > 0]
         return min(validos) if validos else 0.0
+    precos = {row['f1_nome']: row['f1_preco'], row['f2_nome']: row['f2_preco'], row['f3_nome']: row['f3_preco']}
     return precos.get(fa, 0.0) or 0.0
 
 def add_fornecedor(tecido, cor, f1_nome='Fornecedor 1', f1_preco=0.0):
     chave = f"{tecido}|{cor}"
-    conn = get_conn()
     try:
-        conn.execute("""INSERT INTO fornecedores (tecido,cor,chave,f1_nome,f1_preco)
-                        VALUES (?,?,?,?,?)""", (tecido, cor, chave, f1_nome, f1_preco))
-        conn.commit()
+        supabase.table('fornecedores').insert({
+            'tecido': tecido, 'cor': cor, 'chave': chave,
+            'f1_nome': f1_nome, 'f1_preco': f1_preco
+        }).execute()
         return True
     except:
         return False
-    finally:
-        conn.close()
 
 
-# ─────────────────────────────────────────
-# FACCIONISTAS
-# ─────────────────────────────────────────
 def get_faccionistas():
-    conn = get_conn()
-    rows = conn.execute('SELECT * FROM faccionistas ORDER BY modelo').fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    return supabase.table('faccionistas').select('*').order('modelo').execute().data
 
 def update_faccionista(fid, data: dict):
-    campos = ', '.join(f"{k}=?" for k in data)
-    conn = get_conn()
-    conn.execute(f'UPDATE faccionistas SET {campos} WHERE id=?', list(data.values()) + [fid])
-    conn.commit()
-    conn.close()
+    supabase.table('faccionistas').update(data).eq('id', fid).execute()
 
 def get_preco_costura(modelo):
-    conn = get_conn()
-    row = conn.execute('SELECT * FROM faccionistas WHERE modelo=?', (modelo,)).fetchone()
-    conn.close()
-    if not row:
+    rows = supabase.table('faccionistas').select('*').eq('modelo', modelo).execute().data
+    if not rows:
         return 4.0
-    row = dict(row)
+    row = rows[0]
     fa = row['faccionista_ativa']
-    precos_map = {row['f1_nome']: row['f1_preco'],
-                  row['f2_nome']: row['f2_preco'],
-                  row['f3_nome']: row['f3_preco']}
     if fa == 'Mais Barata':
         validos = [p for p in [row['f1_preco'], row['f2_preco'], row['f3_preco']] if p and p > 0]
         return min(validos) if validos else 4.0
-    return precos_map.get(fa, 4.0) or 4.0
+    precos = {row['f1_nome']: row['f1_preco'], row['f2_nome']: row['f2_preco'], row['f3_nome']: row['f3_preco']}
+    return precos.get(fa, 4.0) or 4.0
 
 
-# ─────────────────────────────────────────
-# SKUs
-# ─────────────────────────────────────────
 def get_skus(modelo=None, tecido=None, cor=None):
-    conn = get_conn()
-    q = 'SELECT * FROM skus WHERE 1=1'
-    params = []
-    if modelo:
-        q += ' AND modelo=?'; params.append(modelo)
-    if tecido:
-        q += ' AND tecido=?'; params.append(tecido)
-    if cor:
-        q += ' AND cor=?'; params.append(cor)
-    q += ' ORDER BY modelo, tecido, cor, tamanho'
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    q = supabase.table('skus').select('*')
+    if modelo: q = q.eq('modelo', modelo)
+    if tecido: q = q.eq('tecido', tecido)
+    if cor:    q = q.eq('cor', cor)
+    return q.order('modelo').order('tecido').order('cor').order('tamanho').execute().data
 
 def get_peso(modelo, tecido, cor, tamanho):
-    conn = get_conn()
-    row = conn.execute(
-        'SELECT peso_g FROM skus WHERE modelo=? AND tecido=? AND cor=? AND tamanho=?',
-        (modelo, tecido, cor, tamanho)).fetchone()
-    conn.close()
-    return row['peso_g'] if row else None
+    rows = supabase.table('skus').select('peso_g').eq('modelo', modelo).eq('tecido', tecido).eq('cor', cor).eq('tamanho', tamanho).execute().data
+    return rows[0]['peso_g'] if rows else None
 
 def upsert_sku(modelo, tecido, cor, tamanho, peso_g):
-    conn = get_conn()
-    conn.execute("""INSERT INTO skus (modelo,tecido,cor,tamanho,peso_g) VALUES (?,?,?,?,?)
-                    ON CONFLICT(modelo,tecido,cor,tamanho) DO UPDATE SET peso_g=excluded.peso_g""",
-                 (modelo, tecido, cor, tamanho, peso_g))
-    conn.commit()
-    conn.close()
+    existing = supabase.table('skus').select('id').eq('modelo', modelo).eq('tecido', tecido).eq('cor', cor).eq('tamanho', tamanho).execute().data
+    if existing:
+        supabase.table('skus').update({'peso_g': peso_g}).eq('id', existing[0]['id']).execute()
+    else:
+        supabase.table('skus').insert({'modelo': modelo, 'tecido': tecido, 'cor': cor, 'tamanho': tamanho, 'peso_g': peso_g}).execute()
 
 def delete_sku(sku_id):
-    conn = get_conn()
-    conn.execute('DELETE FROM skus WHERE id=?', (sku_id,))
-    conn.commit()
-    conn.close()
+    supabase.table('skus').delete().eq('id', sku_id).execute()
 
 def update_sku_campo(ids: list, campo: str, valor):
-    """Atualiza um campo específico em uma lista de SKUs pelo ID."""
     campos_permitidos = {'modelo', 'tecido', 'cor', 'tamanho', 'peso_g'}
     if campo not in campos_permitidos:
-        raise ValueError(f"Campo '{campo}' não permitido.")
-    conn = get_conn()
+        raise ValueError(f"Campo '{campo}' nao permitido.")
     for sku_id in ids:
-        conn.execute(f'UPDATE skus SET {campo}=? WHERE id=?', (valor, sku_id))
-    conn.commit()
-    conn.close()
+        supabase.table('skus').update({campo: valor}).eq('id', sku_id).execute()
 
 
-# ─────────────────────────────────────────
-# PEDIDOS
-# ─────────────────────────────────────────
-def criar_pedido(numero, cliente, data, faixa_preco):
-    conn = get_conn()
-    c = conn.cursor()
-    c.execute("INSERT INTO pedidos (numero,cliente,data,faixa_preco) VALUES (?,?,?,?)",
-              (numero, cliente, data, faixa_preco))
-    pid = c.lastrowid
-    conn.commit()
-    conn.close()
-    return pid
-
-def adicionar_item_pedido(pedido_id, modelo, tecido, cor, tamanho, qtd, preco_unit, custo_unit):
-    conn = get_conn()
-    conn.execute("""INSERT INTO pedido_itens
-                    (pedido_id,modelo,tecido,cor,tamanho,qtd,preco_unit,custo_unit)
-                    VALUES (?,?,?,?,?,?,?,?)""",
-                 (pedido_id, modelo, tecido, cor, tamanho, qtd, preco_unit, custo_unit))
-    conn.commit()
-    conn.close()
-
-def get_pedido(pedido_id):
-    conn = get_conn()
-    p = conn.execute('SELECT * FROM pedidos WHERE id=?', (pedido_id,)).fetchone()
-    itens = conn.execute('SELECT * FROM pedido_itens WHERE pedido_id=?', (pedido_id,)).fetchall()
-    conn.close()
-    if not p:
-        return None, []
-    return dict(p), [dict(i) for i in itens]
-
-def get_pedidos():
-    conn = get_conn()
-    rows = conn.execute('SELECT * FROM pedidos ORDER BY created_at DESC').fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def deletar_pedido(pedido_id):
-    conn = get_conn()
-    conn.execute('DELETE FROM pedidos WHERE id=?', (pedido_id,))
-    conn.commit()
-    conn.close()
-
-def deletar_item_pedido(item_id):
-    conn = get_conn()
-    conn.execute('DELETE FROM pedido_itens WHERE id=?', (item_id,))
-    conn.commit()
-    conn.close()
-
-def proximo_numero_pedido():
-    conn = get_conn()
-    row = conn.execute("SELECT numero FROM pedidos ORDER BY id DESC LIMIT 1").fetchone()
-    conn.close()
-    if not row:
-        return "001"
-    try:
-        return str(int(row['numero']) + 1).zfill(3)
-    except:
-        return "001"
-
-
-# ─────────────────────────────────────────
-# RELATÓRIO MENSAL
-# ─────────────────────────────────────────
 def add_registro_mensal(data, numero_pedido, modelo, faixa, variante_faixa,
                          tecido, qtd_pecas, cor_principal, receita, custo, lucro, observacao=''):
-    conn = get_conn()
-    conn.execute("""INSERT INTO relatorio_mensal
-                    (data,numero_pedido,modelo,faixa,variante_faixa,tecido,
-                     qtd_pecas,cor_principal,receita,custo,lucro,observacao)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                 (data, numero_pedido, modelo, faixa, variante_faixa, tecido,
-                  qtd_pecas, cor_principal, receita, custo, lucro, observacao))
-    conn.commit()
-    conn.close()
+    supabase.table('relatorio_mensal').insert({
+        'data': data, 'numero_pedido': numero_pedido, 'modelo': modelo,
+        'faixa': faixa, 'variante_faixa': variante_faixa, 'tecido': tecido,
+        'qtd_pecas': qtd_pecas, 'cor_principal': cor_principal,
+        'receita': receita, 'custo': custo, 'lucro': lucro, 'observacao': observacao
+    }).execute()
 
 def get_relatorio_mensal(mes=None):
-    conn = get_conn()
-    q = 'SELECT * FROM relatorio_mensal WHERE 1=1'
-    params = []
+    q = supabase.table('relatorio_mensal').select('*')
     if mes:
-        q += ' AND substr(data,1,7)=?'; params.append(mes)
-    q += ' ORDER BY data DESC'
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-def update_registro_mensal(rid, data):
-    campos = ', '.join(f"{k}=?" for k in data)
-    conn = get_conn()
-    conn.execute(f'UPDATE relatorio_mensal SET {campos} WHERE id=?', list(data.values()) + [rid])
-    conn.commit()
-    conn.close()
+        q = q.gte('data', f'{mes}-01').lte('data', f'{mes}-31')
+    return q.order('data', desc=True).execute().data
 
 def delete_registro_mensal(rid):
-    conn = get_conn()
-    conn.execute('DELETE FROM relatorio_mensal WHERE id=?', (rid,))
-    conn.commit()
-    conn.close()
+    supabase.table('relatorio_mensal').delete().eq('id', rid).execute()
 
 
-# ─────────────────────────────────────────
-# HISTÓRICO
-# ─────────────────────────────────────────
 def add_historico(tipo, tecido_modelo, preco_anterior, preco_novo, fornecedor_faccionista, motivo=''):
     variacao = round((preco_novo - preco_anterior) / preco_anterior, 4) if preco_anterior else 0
-    conn = get_conn()
-    conn.execute("""INSERT INTO historico
-                    (data,tipo,tecido_modelo,preco_anterior,preco_novo,variacao_pct,
-                     fornecedor_faccionista,motivo)
-                    VALUES (?,?,?,?,?,?,?,?)""",
-                 (datetime.today().strftime('%Y-%m-%d'), tipo, tecido_modelo,
-                  preco_anterior, preco_novo, variacao, fornecedor_faccionista, motivo))
-    conn.commit()
-    conn.close()
+    supabase.table('historico').insert({
+        'data': datetime.today().strftime('%Y-%m-%d'),
+        'tipo': tipo, 'tecido_modelo': tecido_modelo,
+        'preco_anterior': preco_anterior, 'preco_novo': preco_novo,
+        'variacao_pct': variacao, 'fornecedor_faccionista': fornecedor_faccionista,
+        'motivo': motivo
+    }).execute()
 
 def get_historico():
-    conn = get_conn()
-    rows = conn.execute('SELECT * FROM historico ORDER BY data DESC, id DESC').fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    return supabase.table('historico').select('*').order('data', desc=True).order('id', desc=True).execute().data
 
 def delete_historico(hid):
-    conn = get_conn()
-    conn.execute('DELETE FROM historico WHERE id=?', (hid,))
-    conn.commit()
-    conn.close()
+    supabase.table('historico').delete().eq('id', hid).execute()
+
+
+def get_usuarios():
+    return supabase.table('usuarios').select('id,nome,email,nivel,ativo,criado_em').order('criado_em').execute().data
+
+def get_usuario_por_email(email: str):
+    rows = supabase.table('usuarios').select('*').eq('email', email).execute().data
+    return rows[0] if rows else None
+
+def add_usuario(nome, email, senha_hash, nivel):
+    try:
+        supabase.table('usuarios').insert({
+            'nome': nome, 'email': email.lower(),
+            'senha_hash': senha_hash, 'nivel': nivel, 'ativo': True
+        }).execute()
+        return True
+    except:
+        return False
+
+def update_usuario(uid, data: dict):
+    supabase.table('usuarios').update(data).eq('id', uid).execute()
+
+def delete_usuario(uid):
+    supabase.table('usuarios').delete().eq('id', uid).execute()
