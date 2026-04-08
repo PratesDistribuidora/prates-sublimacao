@@ -134,11 +134,8 @@ def init_db():
 
         skus_existentes = supabase.table('skus').select('id').execute().data
         if not skus_existentes:
-            for modelo, tecido, cor, tamanho, peso_g in SKUS_PADRAO:
-                supabase.table('skus').insert({
-                    'modelo': modelo, 'tecido': tecido, 'cor': cor,
-                    'tamanho': tamanho, 'peso_g': peso_g
-                }).execute()
+            batch = [{'modelo': m, 'tecido': t, 'cor': c, 'tamanho': ta, 'peso_g': p} for m,t,c,ta,p in SKUS_PADRAO]
+            supabase.table('skus').insert(batch).execute()
     except Exception as e:
         pass
 
