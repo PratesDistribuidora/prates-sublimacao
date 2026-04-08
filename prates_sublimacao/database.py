@@ -374,6 +374,17 @@ def delete_sku(sku_id):
     conn.commit()
     conn.close()
 
+def update_sku_campo(ids: list, campo: str, valor):
+    """Atualiza um campo específico em uma lista de SKUs pelo ID."""
+    campos_permitidos = {'modelo', 'tecido', 'cor', 'tamanho', 'peso_g'}
+    if campo not in campos_permitidos:
+        raise ValueError(f"Campo '{campo}' não permitido.")
+    conn = get_conn()
+    for sku_id in ids:
+        conn.execute(f'UPDATE skus SET {campo}=? WHERE id=?', (valor, sku_id))
+    conn.commit()
+    conn.close()
+
 
 # ─────────────────────────────────────────
 # PEDIDOS
