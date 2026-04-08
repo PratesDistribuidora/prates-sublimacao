@@ -104,6 +104,7 @@ if 'usuario_logado' not in st.session_state:
     st.markdown("""
     <style>
     [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="stAppViewContainer"] > section:first-child { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
