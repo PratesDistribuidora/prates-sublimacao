@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import base64, os
 
 from database import (
-    init_db, get_parametros, set_parametro,
+    get_parametros, set_parametro,
     get_fornecedores, update_fornecedor, get_preco_kg, add_fornecedor,
     get_faccionistas, update_faccionista, get_preco_costura,
     get_skus, upsert_sku, delete_sku, update_sku_campo,
@@ -39,7 +39,6 @@ def get_logo():
     return None
 
 _LOGO = get_logo()
-init_db()
 
 # ══ ROTEADOR PRINCIPAL ════════════════════════════
 if 'usuario_logado' not in st.session_state:
