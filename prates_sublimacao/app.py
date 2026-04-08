@@ -28,9 +28,8 @@ st.set_page_config(
     page_title="Prates Sublimação",
     page_icon="🧵",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
-init_db()
 
 @st.cache_data(show_spinner=False)
 def get_logo():
@@ -43,7 +42,6 @@ _LOGO = get_logo()
 
 # ══ VERIFICAR LOGIN ANTES DE TUDO ════════════════
 if 'usuario_logado' not in st.session_state:
-    from auth import tela_login
     st.markdown("""
     <style>
     html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
@@ -54,6 +52,8 @@ if 'usuario_logado' not in st.session_state:
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
     st.stop()
+
+init_db()
 
 st.markdown("""
 <style>
