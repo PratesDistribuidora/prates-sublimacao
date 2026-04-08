@@ -39,6 +39,7 @@ def get_logo():
     return None
 
 _LOGO = get_logo()
+init_db()
 
 # ══ ROTEADOR PRINCIPAL ════════════════════════════
 if 'usuario_logado' not in st.session_state:
@@ -52,8 +53,6 @@ if 'usuario_logado' not in st.session_state:
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
     st.stop()
-
-init_db()
 
 st.markdown("""
 <style>
