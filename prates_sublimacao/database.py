@@ -1,3 +1,4 @@
+import streamlit as st
 """
 database.py — Prates Sublimação
 Banco de dados Supabase (PostgreSQL).
@@ -101,6 +102,7 @@ FORNECEDORES_PADRAO = [
 ]
 
 
+@st.cache_resource(show_spinner=False)
 def init_db():
     try:
         defaults = {
