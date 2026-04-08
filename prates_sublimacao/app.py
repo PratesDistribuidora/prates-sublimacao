@@ -22,7 +22,7 @@ from calculadora import (
     calcular_sku_completo, calcular_manual, calcular_lote,
     gerar_tabela_catalogo, resumo_dashboard,
 )
-from auth import tela_login, fazer_logout, paginas_disponiveis, hash_senha
+from auth import tela_login, fazer_logout, paginas_disponiveis, hash_senha, verificar_senha
 
 st.set_page_config(
     page_title="Prates Sublimação",
@@ -33,7 +33,15 @@ st.set_page_config(
 
 @st.cache_data(show_spinner=False)
 def get_logo():
-    if os.path.exists("logo.png"):
+    # Ajuste o caminho da imagem se necessário, para que seja relativo à raiz do projeto Streamlit
+    # Se 'logo.png' estiver na mesma pasta de 'app.py', o caminho é apenas 'logo.png'
+    # Se estiver na raiz do repositório, mas o Streamlit lê a subpasta, pode precisar de '../logo.png'
+    # Mas como você disse que o Streamlit lê SOMENTE a subpasta prates_sublimacao/,
+    # então 'logo.png' deve estar dentro de 'prates_sublimacao/'
+    if os.path.exists("prates_sublimacao/logo.png"): # Assumindo que o app.py está em prates_sublimacao/
+        with open("prates_sublimacao/logo.png","rb") as f:
+            return base64.b64encode(f.read()).decode()
+    elif os.path.exists("logo.png"): # Caso o app.py esteja na raiz e a logo também
         with open("logo.png","rb") as f:
             return base64.b64encode(f.read()).decode()
     return None
@@ -41,6 +49,7 @@ def get_logo():
 _LOGO = get_logo()
 
 # ══ ROTEADOR PRINCIPAL ════════════════════════════
+# Se o usuário NÃO está logado, mostra a tela de login e para a execução
 if 'usuario_logado' not in st.session_state:
     st.markdown("""
     <style>
@@ -51,11 +60,13 @@ if 'usuario_logado' not in st.session_state:
     </style>
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
-    st.stop()
+    st.stop() # Importante para parar a execução e não renderizar o resto do app
 
+# Se o usuário está logado, inicializa o DB e renderiza o aplicativo principal
 init_db()
 
-if True:
+# AQUI ESTÁ A ALTERAÇÃO: Agora só renderiza o app principal se o usuário estiver logado
+if st.session_state.get('usuario_logado'):
     st.markdown("""
     <style>
     html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
@@ -113,14 +124,15 @@ if True:
     ::-webkit-scrollbar-thumb { background: #252932; border-radius: 3px; }
     </style>
     """, unsafe_allow_html=True)
-    
+
     usuario = st.session_state['usuario_logado']
     nivel = usuario.get('nivel', '')
     paginas = paginas_disponiveis()
-    
+
     # Sidebar
     with st.sidebar:
         if _LOGO:
+            # Ajuste o caminho da imagem aqui também se necessário
             st.markdown(
                 f'<div style="text-align:center;padding:16px 8px 8px">'
                 f'<img src="data:image/png;base64,{_LOGO}" width="130" style="border-radius:6px"></div>',
@@ -132,21 +144,21 @@ if True:
             unsafe_allow_html=True
         )
         st.markdown('<hr style="border-color:#252932;margin:4px 0 10px">', unsafe_allow_html=True)
-    
+
         if 'pagina' not in st.session_state or st.session_state.pagina not in paginas:
             st.session_state.pagina = paginas[0] if paginas else ""
-    
+
         for item in paginas:
             if st.button(item, key=f"nav_{item}", use_container_width=True):
                 st.session_state.pagina = item
                 st.rerun()
-    
+
         pagina = st.session_state.pagina
         st.markdown('<hr style="border-color:#252932;margin:10px 0 8px">', unsafe_allow_html=True)
         if st.button("🚪 Sair", use_container_width=True, key="btn_sair"):
             fazer_logout()
         st.markdown('<p style="text-align:center;color:#3a4050;font-size:11px;margin:8px 0 0">Prates Sublimação · Macaé/RJ · v6.0</p>', unsafe_allow_html=True)
-    
+
     # Helpers
     def fmt(v):
         if v is None: return "—"
@@ -157,31 +169,32 @@ if True:
     def kpi_txt(label, valor, cor=""):
         return f'<div class="kpi-card {cor}"><p class="label">{label}</p><p class="value">{valor}</p></div>'
     def titulo(icon, texto):
+        # O caminho da logo no título também precisa ser ajustado se necessário
         logo_html = f'<img src="data:image/png;base64,{_LOGO}" height="32" style="border-radius:4px">' if _LOGO else icon
         st.markdown(f'<div class="page-title">{logo_html} {texto}</div>', unsafe_allow_html=True)
     def sec(t):
         st.markdown(f'<p class="section-label">{t}</p>', unsafe_allow_html=True)
-    
+
     @st.cache_data(ttl=60, show_spinner=False)
     def catalogo_cache():
         return gerar_tabela_catalogo()
-    
+
     def get_opcoes():
         s = get_skus()
         return s, sorted(set(x['modelo'] for x in s)), sorted(set(x['tecido'] for x in s))
-    
+
     def cores(s,m,t):
         return sorted(set(x['cor'] for x in s if x['modelo']==m and x['tecido']==t))
-    
+
     def tams(s,m,t,c):
         return sorted(set(x['tamanho'] for x in s if x['modelo']==m and x['tecido']==t and x['cor']==c))
-    
+
     CHART = dict(
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#6b7280', size=11), height=220,
         margin=dict(l=10,r=10,t=30,b=10),
     )
-    
+
     # ══ DASHBOARD ══════════════════════════════════
     if pagina == "📊 Dashboard":
         titulo("📊", "Dashboard")
@@ -233,7 +246,7 @@ if True:
             st.markdown('<hr style="border-color:#252932;margin:16px 0">', unsafe_allow_html=True)
             sec("Costura Ativa por Modelo")
             st.dataframe(pd.DataFrame([{'Modelo': f['modelo'], 'Faccionista Ativa': f['faccionista_ativa'], 'Preço Ativo': fmt(get_preco_costura(f['modelo']))} for f in get_faccionistas()]), use_container_width=True, hide_index=True)
-    
+
     # ══ SIMULADOR ══════════════════════════════════
     elif pagina == "🧮 Simulador de Preço":
         titulo("🧮", "Simulador de Preço")
@@ -294,7 +307,7 @@ if True:
                 p2.markdown(kpi("Super Revenda", cb['super_revenda'], "verde"), unsafe_allow_html=True)
                 p3.markdown(kpi("Atacado +35%", cb['atacado'], "verde"), unsafe_allow_html=True)
                 p4.markdown(kpi("Varejo +50%", cb['varejo'], "verde"), unsafe_allow_html=True)
-    
+
     # ══ MARGEM REVERSA ══════════════════════════════
     elif pagina == "🔄 Margem Reversa":
         titulo("🔄", "Margem Reversa")
@@ -371,7 +384,7 @@ if True:
                     fig.update_layout(**CHART)
                     fig.update_xaxes(gridcolor='#1e2330'); fig.update_yaxes(gridcolor='#1e2330')
                     st.plotly_chart(fig, use_container_width=True)
-    
+
     # ══ LOTE ═══════════════════════════════════════
     elif pagina == "📦 Simulador de Lote":
         titulo("📦", "Simulador de Lote — Kg → Peças")
@@ -415,7 +428,7 @@ if True:
                     c1.metric("Total Kg", f"{tkg:.1f}kg"); c2.metric("Total Peças", tpcs)
                     c3.metric("Custo Total", fmt(tct)); c4.metric("Faturamento SR", fmt(tft))
                     c5.metric("Lucro Total", fmt(tlc)); c6.metric("Margem Real", fpct(mgr))
-    
+
     # ══ TABELA CLIENTE ══════════════════════════════
     elif pagina == "📤 Tabela para Cliente":
         titulo("📤", "Tabela de Preços para Cliente")
@@ -472,7 +485,7 @@ if True:
                 else:
                     dff_csv = dff[['Modelo','Cor','Tecido','Tamanho','Super Revenda','Atacado','Varejo']].copy()
                 st.download_button("⬇️ Exportar CSV", dff_csv.to_csv(index=False).encode('utf-8-sig'), file_name=f"tabela_{date.today()}.csv", mime="text/csv")
-    
+
     # ══ RELATÓRIO MENSAL ════════════════════════════
     elif pagina == "📈 Relatório Mensal":
         titulo("📈", "Relatório Mensal")
@@ -523,7 +536,7 @@ if True:
             if st.button("Salvar Registro"):
                 add_registro_mensal(str(dr),nr,mr_,fx_r,vr_,tr_,qr,cor_r,rr,cr_,round(rr-cr_,2),obs_r)
                 st.success("Salvo!"); st.rerun()
-    
+
     # ══ CONFIGURAÇÕES ════════════════════════════════
     elif pagina == "⚙️ Configurações":
         titulo("⚙️", "Configurações")
@@ -707,7 +720,7 @@ if True:
                 if st.button("💾 Salvar SKU", key="btn_add_sku"):
                     upsert_sku(ms2, ts2, cs2, tms2, ps2); catalogo_cache.clear()
                     st.success("SKU salvo!"); st.rerun()
-    
+
     # ══ HISTÓRICO ════════════════════════════════════
     elif pagina == "📋 Histórico de Preços":
         titulo("📋", "Histórico de Preços")
@@ -729,7 +742,7 @@ if True:
             mh=st.text_input("Motivo")
             if st.button("Registrar") and tmh and ph2:
                 add_historico(th,tmh,ph1,ph2,fh,mh); st.success("Registrado!"); st.rerun()
-    
+
     # ══ IMPORTAR ═════════════════════════════════════
     elif pagina == "📥 Importar Planilha":
         titulo("📥", "Importar Planilha Excel")
@@ -752,92 +765,96 @@ if True:
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("SKUs", len(get_skus())); c2.metric("Fornecedores", len(get_fornecedores()))
         c3.metric("Faccionistas", len(get_faccionistas())); c4.metric("Histórico", len(get_historico()))
-    
+
     # ══ USUÁRIOS ═════════════════════════════════════
     elif pagina == "👥 Usuários":
-        titulo("👥", "Gestão de Usuários")
-        tab_lista, tab_novo, tab_minha_conta = st.tabs(["👥 Usuários", "➕ Novo Usuário", "🔑 Minha Conta"])
-    
-        with tab_lista:
-            usuarios = get_usuarios()
-            if not usuarios:
-                st.info("Nenhum usuário cadastrado.")
-            else:
-                for u in usuarios:
-                    ativo_label = "🟢 Ativo" if u['ativo'] else "🔴 Inativo"
-                    nivel_color = {"admin": "#2d7a4f", "gerente": "#2563eb", "vendedor": "#d97706", "operador": "#7c3aed"}.get(u['nivel'], "#6b7280")
-                    with st.expander(f"{u['nome']} — {u['email']}   |   {ativo_label}   |   Nível: {u['nivel']}"):
-                        c1, c2, c3 = st.columns(3)
-                        novo_nome  = c1.text_input("Nome",  u['nome'],  key=f"un_{u['id']}")
-                        novo_email = c2.text_input("Email", u['email'], key=f"ue_{u['id']}")
-                        novo_nivel = c3.selectbox("Nível", ["admin","gerente","vendedor","operador"],
-                                                  index=["admin","gerente","vendedor","operador"].index(u['nivel']),
-                                                  key=f"uv_{u['id']}")
-                        nova_senha = st.text_input("Nova Senha (deixe vazio para não alterar)", type="password", key=f"us_{u['id']}")
-    
-                        ca, cb, cc = st.columns(3)
-                        with ca:
-                            if st.button("💾 Salvar", key=f"usave_{u['id']}"):
-                                dados = {'nome': novo_nome, 'email': novo_email.lower(), 'nivel': novo_nivel}
-                                if nova_senha:
-                                    dados['senha_hash'] = hash_senha(nova_senha)
-                                update_usuario(u['id'], dados)
-                                st.success("Atualizado!"); st.rerun()
-                        with cb:
-                            label_ativo = "🔴 Desativar" if u['ativo'] else "🟢 Ativar"
-                            if st.button(label_ativo, key=f"utog_{u['id']}"):
-                                update_usuario(u['id'], {'ativo': not u['ativo']}); st.rerun()
-                        with cc:
-                            if u['nivel'] != 'admin' or sum(1 for x in usuarios if x['nivel'] == 'admin') > 1:
-                                if st.button("🗑️ Excluir", key=f"udel_{u['id']}"):
-                                    st.session_state[f'confirm_del_user_{u["id"]}'] = True
-                            if st.session_state.get(f'confirm_del_user_{u["id"]}'):
-                                st.warning(f"Confirma exclusão de **{u['nome']}**?")
-                                cd1, cd2 = st.columns(2)
-                                with cd1:
-                                    if st.button("✅ Confirmar", key=f"udelok_{u['id']}"):
-                                        delete_usuario(u['id'])
-                                        st.session_state.pop(f'confirm_del_user_{u["id"]}', None)
-                                        st.success("Excluído!"); st.rerun()
-                                with cd2:
-                                    if st.button("❌ Cancelar", key=f"udelno_{u['id']}"):
-                                        st.session_state.pop(f'confirm_del_user_{u["id"]}', None); st.rerun()
-    
-        with tab_novo:
-            st.info("Crie um novo usuário com nível de acesso definido.")
-            c1, c2 = st.columns(2)
-            nn = c1.text_input("Nome completo", key="nn")
-            ne = c2.text_input("E-mail", key="ne")
-            c3, c4 = st.columns(2)
-            nv = c3.selectbox("Nível", ["gerente","vendedor","operador","admin"], key="nv")
-            ns = c4.text_input("Senha", type="password", key="ns")
-            if st.button("➕ Criar Usuário"):
-                if not nn or not ne or not ns:
-                    st.error("Preencha todos os campos.")
+        # Acesso restrito ao admin
+        if nivel != 'admin':
+            st.error("Você não tem permissão para acessar esta página.")
+        else:
+            titulo("👥", "Gestão de Usuários")
+            tab_lista, tab_novo, tab_minha_conta = st.tabs(["👥 Usuários", "➕ Novo Usuário", "🔑 Minha Conta"])
+
+            with tab_lista:
+                usuarios = get_usuarios()
+                if not usuarios:
+                    st.info("Nenhum usuário cadastrado.")
                 else:
-                    ok = add_usuario(nn, ne, hash_senha(ns), nv)
-                    if ok: st.success(f"Usuário **{nn}** criado com sucesso!"); st.rerun()
-                    else:  st.error("E-mail já cadastrado.")
-    
-        with tab_minha_conta:
-            st.info("Atualize seus próprios dados de acesso.")
-            c1, c2 = st.columns(2)
-            mc_nome  = c1.text_input("Nome",  usuario['nome'],  key="mc_nome")
-            mc_email = c2.text_input("Email", usuario['email'], key="mc_email")
-            mc_senha_atual = st.text_input("Senha Atual", type="password", key="mc_sa")
-            c3, c4 = st.columns(2)
-            mc_nova  = c3.text_input("Nova Senha", type="password", key="mc_ns")
-            mc_conf  = c4.text_input("Confirmar Nova Senha", type="password", key="mc_nc")
-            if st.button("💾 Salvar Minha Conta"):
-                from auth import verificar_senha
-                if not verificar_senha(mc_senha_atual, usuario['senha_hash']):
-                    st.error("Senha atual incorreta.")
-                elif mc_nova and mc_nova != mc_conf:
-                    st.error("Nova senha e confirmação não conferem.")
-                else:
-                    dados = {'nome': mc_nome, 'email': mc_email.lower()}
-                    if mc_nova:
-                        dados['senha_hash'] = hash_senha(mc_nova)
-                    update_usuario(usuario['id'], dados)
-                    st.session_state['usuario_logado'].update(dados)
-                    st.success("Dados atualizados com sucesso!"); st.rerun()
+                    for u in usuarios:
+                        ativo_label = "🟢 Ativo" if u['ativo'] else "🔴 Inativo"
+                        nivel_color = {"admin": "#2d7a4f", "gerente": "#2563eb", "vendedor": "#d97706", "operador": "#7c3aed"}.get(u['nivel'], "#6b7280")
+                        with st.expander(f"{u['nome']} — {u['email']}   |   {ativo_label}   |   Nível: {u['nivel']}"):
+                            c1, c2, c3 = st.columns(3)
+                            novo_nome  = c1.text_input("Nome",  u['nome'],  key=f"un_{u['id']}")
+                            novo_email = c2.text_input("Email", u['email'], key=f"ue_{u['id']}")
+                            novo_nivel = c3.selectbox("Nível", ["admin","gerente","vendedor","operador"],
+                                                      index=["admin","gerente","vendedor","operador"].index(u['nivel']),
+                                                      key=f"uv_{u['id']}")
+                            nova_senha = st.text_input("Nova Senha (deixe vazio para não alterar)", type="password", key=f"us_{u['id']}")
+
+                            ca, cb, cc = st.columns(3)
+                            with ca:
+                                if st.button("💾 Salvar", key=f"usave_{u['id']}"):
+                                    dados = {'nome': novo_nome, 'email': novo_email.lower(), 'nivel': novo_nivel}
+                                    if nova_senha:
+                                        dados['senha_hash'] = hash_senha(nova_senha)
+                                    update_usuario(u['id'], dados)
+                                    st.success("Atualizado!"); st.rerun()
+                            with cb:
+                                label_ativo = "🔴 Desativar" if u['ativo'] else "🟢 Ativar"
+                                if st.button(label_ativo, key=f"utog_{u['id']}"):
+                                    update_usuario(u['id'], {'ativo': not u['ativo']}); st.rerun()
+                            with cc:
+                                if u['nivel'] != 'admin' or sum(1 for x in usuarios if x['nivel'] == 'admin') > 1:
+                                    if st.button("🗑️ Excluir", key=f"udel_{u['id']}"):
+                                        st.session_state[f'confirm_del_user_{u["id"]}'] = True
+                                if st.session_state.get(f'confirm_del_user_{u["id"]}'):
+                                    st.warning(f"Confirma exclusão de **{u['nome']}**?")
+                                    cd1, cd2 = st.columns(2)
+                                    with cd1:
+                                        if st.button("✅ Confirmar", key=f"udelok_{u['id']}"):
+                                            delete_usuario(u['id'])
+                                            st.session_state.pop(f'confirm_del_user_{u["id"]}', None)
+                                            st.success("Excluído!"); st.rerun()
+                                    with cd2:
+                                        if st.button("❌ Cancelar", key=f"udelno_{u['id']}"):
+                                            st.session_state.pop(f'confirm_del_user_{u["id"]}', None); st.rerun()
+
+            with tab_novo:
+                st.info("Crie um novo usuário com nível de acesso definido.")
+                c1, c2 = st.columns(2)
+                nn = c1.text_input("Nome completo", key="nn")
+                ne = c2.text_input("E-mail", key="ne")
+                c3, c4 = st.columns(2)
+                nv = c3.selectbox("Nível", ["gerente","vendedor","operador","admin"], key="nv")
+                ns = c4.text_input("Senha", type="password", key="ns")
+                if st.button("➕ Criar Usuário"):
+                    if not nn or not ne or not ns:
+                        st.error("Preencha todos os campos.")
+                    else:
+                        ok = add_usuario(nn, ne, hash_senha(ns), nv)
+                        if ok: st.success(f"Usuário **{nn}** criado com sucesso!"); st.rerun()
+                        else:  st.error("E-mail já cadastrado.")
+
+            with tab_minha_conta:
+                st.info("Atualize seus próprios dados de acesso.")
+                c1, c2 = st.columns(2)
+                mc_nome  = c1.text_input("Nome",  usuario['nome'],  key="mc_nome")
+                mc_email = c2.text_input("Email", usuario['email'], key="mc_email")
+                mc_senha_atual = st.text_input("Senha Atual", type="password", key="mc_sa")
+                c3, c4 = st.columns(2)
+                mc_nova  = c3.text_input("Nova Senha", type="password", key="mc_ns")
+                mc_conf  = c4.text_input("Confirmar Nova Senha", type="password", key="mc_nc")
+                if st.button("💾 Salvar Minha Conta"):
+                    # A função verificar_senha já está importada do auth.py
+                    if not verificar_senha(mc_senha_atual, usuario['senha_hash']):
+                        st.error("Senha atual incorreta.")
+                    elif mc_nova and mc_nova != mc_conf:
+                        st.error("Nova senha e confirmação não conferem.")
+                    else:
+                        dados = {'nome': mc_nome, 'email': mc_email.lower()}
+                        if mc_nova:
+                            dados['senha_hash'] = hash_senha(mc_nova)
+                        update_usuario(usuario['id'], dados)
+                        st.session_state['usuario_logado'].update(dados)
+                        st.success("Dados atualizados com sucesso!"); st.rerun()
