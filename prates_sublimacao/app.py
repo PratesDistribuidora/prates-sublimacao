@@ -14,7 +14,7 @@ from database import (
     init_db, get_parametros, set_parametro,
     get_fornecedores, update_fornecedor, get_preco_kg, add_fornecedor,
     get_faccionistas, update_faccionista, get_preco_costura,
-    get_skus, upsert_sku,
+    get_skus, upsert_sku, delete_sku, update_sku_campo,
     get_relatorio_mensal, add_registro_mensal, delete_registro_mensal,
     get_historico, add_historico,
 )
@@ -829,19 +829,135 @@ elif pagina == "⚙️ Configurações":
 
     with ts:
         sk = get_skus()
-        st.dataframe(pd.DataFrame(sk)[['id','modelo','tecido','cor','tamanho','peso_g']],
-                    use_container_width=True, hide_index=True)
-        st.caption(f"Total: {len(sk)} SKUs")
-        st.markdown('<hr style="border-color:#252932;margin:12px 0">', unsafe_allow_html=True)
-        sec("Adicionar / Atualizar SKU")
-        c1,c2,c3,c4,c5 = st.columns(5)
-        ms2=c1.text_input("Modelo","Adulto"); ts2=c2.text_input("Tecido","PP")
-        cs2=c3.text_input("Cor"); tms2=c4.selectbox("Tamanho",["P-GG","XGG","1-14"])
-        ps2=c5.number_input("Peso (g)",1.0,value=235.0,step=5.0)
-        if st.button("Salvar SKU"):
-            upsert_sku(ms2,ts2,cs2,tms2,ps2)
-            catalogo_cache.clear()
-            st.success("SKU salvo!"); st.rerun()
+        df_sk = pd.DataFrame(sk)[['id','modelo','tecido','cor','tamanho','peso_g']] if sk else pd.DataFrame()
+
+        tab_lista, tab_editar, tab_lote, tab_adicionar = st.tabs([
+            "📋 Lista", "✏️ Editar SKU", "🔄 Edição em Lote", "➕ Adicionar SKU"
+        ])
+
+        # ── LISTA ──────────────────────────────────────────────
+        with tab_lista:
+            if df_sk.empty:
+                st.warning("Nenhum SKU cadastrado.")
+            else:
+                c1, c2, c3 = st.columns(3)
+                f_mod = c1.selectbox("Filtrar Modelo", ['Todos'] + sorted(df_sk['modelo'].unique()), key="lst_mod")
+                f_tec = c2.selectbox("Filtrar Tecido", ['Todos'] + sorted(df_sk['tecido'].unique()), key="lst_tec")
+                f_cor = c3.selectbox("Filtrar Cor",    ['Todas'] + sorted(df_sk['cor'].unique()),    key="lst_cor")
+                dff = df_sk.copy()
+                if f_mod != 'Todos': dff = dff[dff['modelo'] == f_mod]
+                if f_tec != 'Todos': dff = dff[dff['tecido'] == f_tec]
+                if f_cor != 'Todas': dff = dff[dff['cor']    == f_cor]
+                st.dataframe(dff, use_container_width=True, hide_index=True)
+                st.caption(f"Exibindo {len(dff)} de {len(sk)} SKUs")
+
+        # ── EDITAR INDIVIDUAL ───────────────────────────────────
+        with tab_editar:
+            if df_sk.empty:
+                st.warning("Nenhum SKU cadastrado.")
+            else:
+                st.info("Selecione o SKU pelo ID e edite os dados abaixo.")
+                labels = {
+                    str(s['id']): f"#{s['id']} — {s['modelo']} | {s['tecido']} | {s['cor']} | {s['tamanho']} | {s['peso_g']}g"
+                    for s in sk
+                }
+                sel_id = st.selectbox("Selecionar SKU", list(labels.keys()), format_func=lambda x: labels[x], key="edit_id")
+                sku_sel = next(s for s in sk if str(s['id']) == sel_id)
+
+                st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
+                c1, c2, c3, c4, c5 = st.columns(5)
+                e_mod = c1.text_input("Modelo",  sku_sel['modelo'],  key="e_mod")
+                e_tec = c2.text_input("Tecido",  sku_sel['tecido'],  key="e_tec")
+                e_cor = c3.text_input("Cor",     sku_sel['cor'],     key="e_cor")
+                _tam_opts = ["P-GG","XGG","1-14"]
+                _tam_idx  = _tam_opts.index(sku_sel['tamanho']) if sku_sel['tamanho'] in _tam_opts else 0
+                e_tam = c4.selectbox("Tamanho", _tam_opts, index=_tam_idx, key="e_tam")
+                e_pes = c5.number_input("Peso (g)", 1.0, value=float(sku_sel['peso_g']), step=5.0, key="e_pes")
+
+                col_salvar, col_excluir, _ = st.columns([1, 1, 4])
+                with col_salvar:
+                    if st.button("💾 Salvar", key="btn_edit_salvar"):
+                        upsert_sku(e_mod, e_tec, e_cor, e_tam, e_pes)
+                        catalogo_cache.clear()
+                        st.success(f"SKU #{sel_id} atualizado!")
+                        st.rerun()
+                with col_excluir:
+                    if st.button("🗑️ Excluir", key="btn_edit_excluir"):
+                        st.session_state['confirmar_exclusao'] = sel_id
+
+                if st.session_state.get('confirmar_exclusao') == sel_id:
+                    st.warning(f"Confirma exclusão de **#{sel_id} — {sku_sel['modelo']} {sku_sel['tecido']} {sku_sel['cor']} {sku_sel['tamanho']}**?")
+                    cc1, cc2, _ = st.columns([1, 1, 4])
+                    with cc1:
+                        if st.button("✅ Confirmar", key="btn_confirm_del"):
+                            delete_sku(int(sel_id))
+                            catalogo_cache.clear()
+                            st.session_state.pop('confirmar_exclusao', None)
+                            st.success("SKU excluído!")
+                            st.rerun()
+                    with cc2:
+                        if st.button("❌ Cancelar", key="btn_cancel_del"):
+                            st.session_state.pop('confirmar_exclusao', None)
+                            st.rerun()
+
+        # ── EDIÇÃO EM LOTE ──────────────────────────────────────
+        with tab_lote:
+            st.info("Use os filtros para selecionar um grupo de SKUs e altere um campo em todos de uma vez.")
+            if df_sk.empty:
+                st.warning("Nenhum SKU cadastrado.")
+            else:
+                sec("Filtros de Seleção")
+                c1, c2, c3, c4 = st.columns(4)
+                bl_mod = c1.selectbox("Modelo", ['Todos'] + sorted(df_sk['modelo'].unique()), key="bl_mod")
+                bl_tec = c2.selectbox("Tecido", ['Todos'] + sorted(df_sk['tecido'].unique()), key="bl_tec")
+                bl_cor = c3.selectbox("Cor",    ['Todas'] + sorted(df_sk['cor'].unique()),    key="bl_cor")
+                bl_tam = c4.selectbox("Tamanho",['Todos'] + sorted(df_sk['tamanho'].unique()),key="bl_tam")
+
+                df_lote = df_sk.copy()
+                if bl_mod != 'Todos': df_lote = df_lote[df_lote['modelo']  == bl_mod]
+                if bl_tec != 'Todos': df_lote = df_lote[df_lote['tecido']  == bl_tec]
+                if bl_cor != 'Todas': df_lote = df_lote[df_lote['cor']     == bl_cor]
+                if bl_tam != 'Todos': df_lote = df_lote[df_lote['tamanho'] == bl_tam]
+
+                st.caption(f"**{len(df_lote)} SKUs** selecionados:")
+                st.dataframe(df_lote, use_container_width=True, hide_index=True)
+
+                if len(df_lote) > 0:
+                    st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
+                    sec("Alterar Campo nos SKUs Selecionados")
+                    c1, c2 = st.columns(2)
+                    campo_lote = c1.selectbox("Campo a alterar", ["peso_g","modelo","tecido","cor","tamanho"], key="bl_campo")
+                    if campo_lote == "peso_g":
+                        novo_val = c2.number_input("Novo Peso (g)", 1.0, value=235.0, step=5.0, key="bl_val_num")
+                    elif campo_lote == "tamanho":
+                        novo_val = c2.selectbox("Novo Tamanho", ["P-GG","XGG","1-14"], key="bl_val_tam")
+                    else:
+                        novo_val = c2.text_input(f"Novo valor para '{campo_lote}'", key="bl_val_txt")
+
+                    if st.button(f"⚡ Aplicar em {len(df_lote)} SKUs", key="btn_lote"):
+                        if not novo_val and campo_lote != "peso_g":
+                            st.error("Informe o novo valor antes de aplicar.")
+                        else:
+                            ids_lote = df_lote['id'].tolist()
+                            update_sku_campo(ids_lote, campo_lote, novo_val)
+                            catalogo_cache.clear()
+                            st.success(f"✅ {len(ids_lote)} SKUs atualizados — '{campo_lote}' → '{novo_val}'")
+                            st.rerun()
+
+        # ── ADICIONAR ───────────────────────────────────────────
+        with tab_adicionar:
+            st.info("Preencha os dados para adicionar ou atualizar um SKU.")
+            c1, c2, c3, c4, c5 = st.columns(5)
+            ms2  = c1.text_input("Modelo",  "Adulto", key="add_mod")
+            ts2  = c2.text_input("Tecido",  "PP",     key="add_tec")
+            cs2  = c3.text_input("Cor",               key="add_cor")
+            tms2 = c4.selectbox("Tamanho",  ["P-GG","XGG","1-14"], key="add_tam")
+            ps2  = c5.number_input("Peso (g)", 1.0, value=235.0, step=5.0, key="add_pes")
+            if st.button("💾 Salvar SKU", key="btn_add_sku"):
+                upsert_sku(ms2, ts2, cs2, tms2, ps2)
+                catalogo_cache.clear()
+                st.success("SKU salvo!")
+                st.rerun()
 
 # ══ HISTÓRICO ════════════════════════════════════
 elif pagina == "📋 Histórico de Preços":
