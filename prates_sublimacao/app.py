@@ -41,9 +41,7 @@ def get_logo():
 _LOGO = get_logo()
 
 # ══ ROTEADOR PRINCIPAL ════════════════════════════
-_logado = 'usuario_logado' in st.session_state
-
-if not _logado:
+if 'usuario_logado' not in st.session_state:
     st.markdown("""
     <style>
     html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
@@ -53,10 +51,11 @@ if not _logado:
     </style>
     """, unsafe_allow_html=True)
     tela_login(_LOGO)
-else:
-    init_db()
+    st.stop()
 
-if _logado:
+init_db()
+
+if True:
     st.markdown("""
     <style>
     html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
