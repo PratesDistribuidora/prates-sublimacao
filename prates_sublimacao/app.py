@@ -856,49 +856,70 @@ elif pagina == "⚙️ Configurações":
             if df_sk.empty:
                 st.warning("Nenhum SKU cadastrado.")
             else:
-                st.info("Selecione o SKU pelo ID e edite os dados abaixo.")
-                labels = {
-                    str(s['id']): f"#{s['id']} — {s['modelo']} | {s['tecido']} | {s['cor']} | {s['tamanho']} | {s['peso_g']}g"
-                    for s in sk
-                }
-                sel_id = st.selectbox("Selecionar SKU", list(labels.keys()), format_func=lambda x: labels[x], key="edit_id")
-                sku_sel = next(s for s in sk if str(s['id']) == sel_id)
+                st.info("Use os filtros para localizar o SKU e edite os dados abaixo.")
+                sec("Filtros de Localização")
+                c1, c2, c3, c4 = st.columns(4)
+                ed_mod = c1.selectbox("Modelo",  ['Todos'] + sorted(df_sk['modelo'].unique()), key="ed_mod")
+                ed_tec = c2.selectbox("Tecido",  ['Todos'] + sorted(df_sk['tecido'].unique()), key="ed_tec")
+                ed_cor = c3.selectbox("Cor",     ['Todas'] + sorted(df_sk['cor'].unique()),    key="ed_cor")
+                ed_tam = c4.selectbox("Tamanho", ['Todos'] + sorted(df_sk['tamanho'].unique()),key="ed_tam")
 
-                st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
-                c1, c2, c3, c4, c5 = st.columns(5)
-                e_mod = c1.text_input("Modelo",  sku_sel['modelo'],  key="e_mod")
-                e_tec = c2.text_input("Tecido",  sku_sel['tecido'],  key="e_tec")
-                e_cor = c3.text_input("Cor",     sku_sel['cor'],     key="e_cor")
-                _tam_opts = ["P-GG","XGG","1-14"]
-                _tam_idx  = _tam_opts.index(sku_sel['tamanho']) if sku_sel['tamanho'] in _tam_opts else 0
-                e_tam = c4.selectbox("Tamanho", _tam_opts, index=_tam_idx, key="e_tam")
-                e_pes = c5.number_input("Peso (g)", 1.0, value=float(sku_sel['peso_g']), step=5.0, key="e_pes")
+                df_ed = df_sk.copy()
+                if ed_mod != 'Todos': df_ed = df_ed[df_ed['modelo']  == ed_mod]
+                if ed_tec != 'Todos': df_ed = df_ed[df_ed['tecido']  == ed_tec]
+                if ed_cor != 'Todas': df_ed = df_ed[df_ed['cor']     == ed_cor]
+                if ed_tam != 'Todos': df_ed = df_ed[df_ed['tamanho'] == ed_tam]
 
-                col_salvar, col_excluir, _ = st.columns([1, 1, 4])
-                with col_salvar:
-                    if st.button("💾 Salvar", key="btn_edit_salvar"):
-                        upsert_sku(e_mod, e_tec, e_cor, e_tam, e_pes)
-                        catalogo_cache.clear()
-                        st.success(f"SKU #{sel_id} atualizado!")
-                        st.rerun()
-                with col_excluir:
-                    if st.button("🗑️ Excluir", key="btn_edit_excluir"):
-                        st.session_state['confirmar_exclusao'] = sel_id
+                st.caption(f"{len(df_ed)} SKU(s) encontrado(s)")
+                st.dataframe(df_ed, use_container_width=True, hide_index=True)
 
-                if st.session_state.get('confirmar_exclusao') == sel_id:
-                    st.warning(f"Confirma exclusão de **#{sel_id} — {sku_sel['modelo']} {sku_sel['tecido']} {sku_sel['cor']} {sku_sel['tamanho']}**?")
-                    cc1, cc2, _ = st.columns([1, 1, 4])
-                    with cc1:
-                        if st.button("✅ Confirmar", key="btn_confirm_del"):
-                            delete_sku(int(sel_id))
+                if len(df_ed) == 0:
+                    st.warning("Nenhum SKU encontrado com esses filtros.")
+                else:
+                    st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
+                    sec("Selecionar SKU para Editar")
+                    labels_ed = {
+                        str(s['id']): f"#{s['id']} — {s['modelo']} | {s['tecido']} | {s['cor']} | {s['tamanho']} | {s['peso_g']}g"
+                        for s in df_ed.to_dict('records')
+                    }
+                    sel_id = st.selectbox("SKU", list(labels_ed.keys()), format_func=lambda x: labels_ed[x], key="edit_id")
+                    sku_sel = next(s for s in sk if str(s['id']) == sel_id)
+
+                    st.markdown('<hr style="border-color:#252932;margin:10px 0">', unsafe_allow_html=True)
+                    c1, c2, c3, c4, c5 = st.columns(5)
+                    e_mod = c1.text_input("Modelo",  sku_sel['modelo'],  key="e_mod")
+                    e_tec = c2.text_input("Tecido",  sku_sel['tecido'],  key="e_tec")
+                    e_cor = c3.text_input("Cor",     sku_sel['cor'],     key="e_cor")
+                    _tam_opts = ["P-GG","XGG","1-14"]
+                    _tam_idx  = _tam_opts.index(sku_sel['tamanho']) if sku_sel['tamanho'] in _tam_opts else 0
+                    e_tam = c4.selectbox("Tamanho", _tam_opts, index=_tam_idx, key="e_tam")
+                    e_pes = c5.number_input("Peso (g)", 1.0, value=float(sku_sel['peso_g']), step=5.0, key="e_pes")
+
+                    col_salvar, col_excluir, _ = st.columns([1, 1, 4])
+                    with col_salvar:
+                        if st.button("💾 Salvar", key="btn_edit_salvar"):
+                            upsert_sku(e_mod, e_tec, e_cor, e_tam, e_pes)
                             catalogo_cache.clear()
-                            st.session_state.pop('confirmar_exclusao', None)
-                            st.success("SKU excluído!")
+                            st.success(f"SKU #{sel_id} atualizado!")
                             st.rerun()
-                    with cc2:
-                        if st.button("❌ Cancelar", key="btn_cancel_del"):
-                            st.session_state.pop('confirmar_exclusao', None)
-                            st.rerun()
+                    with col_excluir:
+                        if st.button("🗑️ Excluir", key="btn_edit_excluir"):
+                            st.session_state['confirmar_exclusao'] = sel_id
+
+                    if st.session_state.get('confirmar_exclusao') == sel_id:
+                        st.warning(f"Confirma exclusão de **#{sel_id} — {sku_sel['modelo']} {sku_sel['tecido']} {sku_sel['cor']} {sku_sel['tamanho']}**?")
+                        cc1, cc2, _ = st.columns([1, 1, 4])
+                        with cc1:
+                            if st.button("✅ Confirmar", key="btn_confirm_del"):
+                                delete_sku(int(sel_id))
+                                catalogo_cache.clear()
+                                st.session_state.pop('confirmar_exclusao', None)
+                                st.success("SKU excluído!")
+                                st.rerun()
+                        with cc2:
+                            if st.button("❌ Cancelar", key="btn_cancel_del"):
+                                st.session_state.pop('confirmar_exclusao', None)
+                                st.rerun()
 
         # ── EDIÇÃO EM LOTE ──────────────────────────────────────
         with tab_lote:
