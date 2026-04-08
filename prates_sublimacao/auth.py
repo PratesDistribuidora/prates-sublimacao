@@ -149,16 +149,14 @@ def tela_login(_logo=None):
 
         # ── TELA LOGIN ──
         if st.session_state.tela == 'login':
-            st.markdown("""
-            <div style="background:#16191f;border:1px solid #252932;border-radius:10px;padding:32px 28px 8px">
-            <p style="color:#e2e8f0;font-size:18px;font-weight:600;margin:0 0 4px">Prates Sublimação</p>
-            <p style="color:#6b7280;font-size:13px;margin:0 0 20px">Faça login para continuar</p>
-            """, unsafe_allow_html=True)
+            with st.form("form_login"):
+                st.markdown('<p style="color:#e2e8f0;font-size:16px;font-weight:600;margin:0 0 4px">Entrar no Sistema</p>', unsafe_allow_html=True)
+                st.markdown('<p style="color:#6b7280;font-size:12px;margin:0 0 16px">Prates Sublimação · Macaé/RJ</p>', unsafe_allow_html=True)
+                email = st.text_input("E-mail", placeholder="seu@email.com")
+                senha = st.text_input("Senha", type="password", placeholder="••••••••")
+                submitted = st.form_submit_button("Entrar", use_container_width=True)
 
-            email = st.text_input("E-mail", placeholder="seu@email.com", key="login_email")
-            senha = st.text_input("Senha", type="password", placeholder="••••••••", key="login_senha")
-
-            if st.button("Entrar", use_container_width=True, key="btn_login"):
+            if submitted:
                 if not email or not senha:
                     st.error("Preencha e-mail e senha.")
                 else:
@@ -167,12 +165,7 @@ def tela_login(_logo=None):
                         st.error(erro)
                     else:
                         st.session_state['usuario_logado'] = usuario
-                        st.session_state['tela'] = 'login'
                         st.rerun()
-                        st.stop()
-
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
             if st.button("🔑 Esqueci minha senha", use_container_width=True, key="btn_forgot"):
                 st.session_state.tela = 'recuperar'
