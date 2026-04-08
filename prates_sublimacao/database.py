@@ -292,3 +292,23 @@ def update_usuario(uid, data: dict):
 
 def delete_usuario(uid):
     supabase.table('usuarios').delete().eq('id', uid).execute()
+
+
+# ─────────────────────────────────────────
+# TOKENS DE RECUPERAÇÃO DE SENHA
+# ─────────────────────────────────────────
+def add_token_recuperacao(email: str, codigo: str, expira_em: str):
+    # Remove token anterior se existir
+    supabase.table('recovery_tokens').delete().eq('email', email).execute()
+    supabase.table('recovery_tokens').insert({
+        'email': email,
+        'codigo': codigo,
+        'expira_em': expira_em
+    }).execute()
+
+def get_token_recuperacao(email: str, codigo: str):
+    rows = supabase.table('recovery_tokens').select('*').eq('email', email).eq('codigo', codigo).execute().data
+    return rows[0] if rows else None
+
+def deletar_token_recuperacao(email: str):
+    supabase.table('recovery_tokens').delete().eq('email', email).execute()
