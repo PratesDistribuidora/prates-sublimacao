@@ -167,7 +167,9 @@ def tela_login(_logo=None):
                         st.error(erro)
                     else:
                         st.session_state['usuario_logado'] = usuario
+                        st.session_state['tela'] = 'login'
                         st.rerun()
+                        st.stop()
 
             st.markdown("</div>", unsafe_allow_html=True)
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
