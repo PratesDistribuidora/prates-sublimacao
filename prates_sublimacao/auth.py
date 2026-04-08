@@ -136,7 +136,7 @@ def tela_login(_logo=None):
     if 'tela' not in st.session_state:
         st.session_state.tela = 'login'
 
-    col_l, col_c, col_r = st.columns([1, 1.2, 1])
+    _, col_c, _ = st.columns([1, 1.2, 1])
     with col_c:
         st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
 
