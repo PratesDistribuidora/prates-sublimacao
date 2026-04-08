@@ -101,6 +101,11 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
 
 # ══ VERIFICAR LOGIN ══════════════════════════════
 if 'usuario_logado' not in st.session_state:
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
     tela_login(_LOGO)
     st.stop()
 
