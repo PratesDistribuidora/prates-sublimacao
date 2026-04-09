@@ -191,16 +191,32 @@ def get_faccionistas():
 def update_faccionista(fid, data: dict):
     supabase.table('faccionistas').update(data).eq('id', fid).execute()
 
-def get_preco_costura(modelo):
+def get_preco_costura(modelo, cor=None):
     rows = supabase.table('faccionistas').select('*').eq('modelo', modelo).execute().data
     if not rows:
         return 4.0
     row = rows[0]
     fa = row['faccionista_ativa']
+    # Escolhe campo branco ou colorido
+    eh_branca = cor and cor.lower() == 'branco'
+    campo_preco = 'f{}_preco_branco' if eh_branca else 'f{}_preco_colorido'
+    # Verifica se os campos novos existem
+    tem_campo_novo = 'f1_preco_branco' in row
     if fa == 'Mais Barata':
-        validos = [p for p in [row['f1_preco'], row['f2_preco'], row['f3_preco']] if p and p > 0]
+        if tem_campo_novo:
+            validos = [row.get(campo_preco.format(i), 0) for i in [1,2,3]]
+        else:
+            validos = [row['f1_preco'], row['f2_preco'], row['f3_preco']]
+        validos = [p for p in validos if p and p > 0]
         return min(validos) if validos else 4.0
-    precos = {row['f1_nome']: row['f1_preco'], row['f2_nome']: row['f2_preco'], row['f3_nome']: row['f3_preco']}
+    if tem_campo_novo:
+        precos = {
+            row['f1_nome']: row.get(campo_preco.format(1), row['f1_preco']),
+            row['f2_nome']: row.get(campo_preco.format(2), row['f2_preco']),
+            row['f3_nome']: row.get(campo_preco.format(3), row['f3_preco']),
+        }
+    else:
+        precos = {row['f1_nome']: row['f1_preco'], row['f2_nome']: row['f2_preco'], row['f3_nome']: row['f3_preco']}
     return precos.get(fa, 4.0) or 4.0
 
 
