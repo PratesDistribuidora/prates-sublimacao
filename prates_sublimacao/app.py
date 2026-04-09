@@ -50,9 +50,12 @@ if 'usuario_logado' not in st.session_state:
     [data-testid="stAppViewContainer"] { background: #111318; }
     [data-testid="stHeader"] { background: transparent; }
     section[data-testid="stSidebar"] { display: none !important; }
+    [data-testid="stAppViewContainer"] > section.main > div { padding: 0 !important; }
     </style>
     """, unsafe_allow_html=True)
-    tela_login(_LOGO)
+    placeholder = st.empty()
+    with placeholder.container():
+        tela_login(_LOGO)
     st.stop()
 
 st.markdown("""
@@ -184,13 +187,6 @@ CHART = dict(
 # ══ DASHBOARD ══════════════════════════════════
 if pagina == "📊 Dashboard":
     titulo("📊", "Dashboard")
-    if 'dash_ok' not in st.session_state:
-        st.session_state['dash_ok'] = False
-    if not st.session_state['dash_ok']:
-        if st.button("🔄 Carregar Dashboard", use_container_width=True):
-            st.session_state['dash_ok'] = True
-            st.rerun()
-        st.stop()
     kpis = resumo_dashboard()
     if not kpis:
         st.warning("Nenhum SKU cadastrado.")
