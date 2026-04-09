@@ -73,7 +73,7 @@ def calcular_custo(modelo, tecido, cor, tamanho, peso_g=None):
         if peso_g is None:
             return None
     preco_kg = get_preco_kg(tecido, cor)
-    costura  = get_preco_costura(modelo)
+    costura  = get_preco_costura(modelo, cor)
     custo_tecido, subtotal, frete, outros, embalagem, custo_final = _calcular_custo_rapido(peso_g, preco_kg, costura, params)
     return {
         'modelo': modelo, 'tecido': tecido, 'cor': cor, 'tamanho': tamanho,
