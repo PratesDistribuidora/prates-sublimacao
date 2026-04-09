@@ -138,12 +138,9 @@ with st.sidebar:
     if 'pagina' not in st.session_state or st.session_state.pagina not in paginas:
         st.session_state.pagina = paginas[0] if paginas else ""
 
-    for item in paginas:
-        if st.button(item, key=f"nav_{item}", use_container_width=True):
-            st.session_state.pagina = item
-            st.rerun()
-
-    pagina = st.session_state.pagina
+    idx_atual = paginas.index(st.session_state.pagina) if st.session_state.pagina in paginas else 0
+    pagina = st.radio("", paginas, index=idx_atual, key="nav_radio", label_visibility="collapsed")
+    st.session_state.pagina = pagina
     st.markdown('<hr style="border-color:#252932;margin:10px 0 8px">', unsafe_allow_html=True)
     if st.button("🚪 Sair", use_container_width=True, key="btn_sair"):
         fazer_logout()
