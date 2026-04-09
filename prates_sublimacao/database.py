@@ -7,8 +7,8 @@ Banco de dados Supabase (PostgreSQL).
 from supabase import create_client, Client
 from datetime import datetime
 
-SUPABASE_URL = "https://gzoiiopchxylqsjipkkh.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6b2lpb3BjaHh5bHFzamlwa2toIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ5MDkxMSwiZXhwIjoyMDkxMDY2OTExfQ.lDDdlx964VypyvQv6IUVvoZqAZrZx6x3Fg4wzCdfvQY"
+SUPABASE_URL = "https://fqzttkinxevjmnvszggm.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxenR0a2lueGV2am1udnN6Z2dtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTY5MDIzNSwiZXhwIjoyMDkxMjY2MjM1fQ.of53M2fXu9a8bo4FrpvmusF-ypHa8opIcyRmzRoWXrk"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
