@@ -547,7 +547,11 @@ elif pagina == "⚙️ Configurações":
             catalogo_cache.clear(); st.success("Parâmetros salvos!"); st.rerun()
     with tf:
         st.info("Atualize o preço/kg aqui. O Fornecedor Ativo é usado em todos os cálculos.")
-        for fo in get_fornecedores():
+        busca_forn = st.text_input("🔍 Buscar tecido ou cor", key="busca_forn", placeholder="Digite tecido ou cor...")
+        forn_list = get_fornecedores()
+        if busca_forn:
+            forn_list = [f for f in forn_list if busca_forn.lower() in f['tecido'].lower() or busca_forn.lower() in f['cor'].lower()]
+        for fo in forn_list:
             with st.expander(f"{fo['tecido']} — {fo['cor']}   |   Ativo: {fo['fornecedor_ativo']}   |   {fmt(get_preco_kg(fo['tecido'],fo['cor']))}/kg"):
                 c1,c2,c3,c4 = st.columns(4)
                 f1n=c1.text_input("Fornecedor 1",fo['f1_nome'],key=f"f1n{fo['id']}")
@@ -573,21 +577,39 @@ elif pagina == "⚙️ Configurações":
             ok=add_fornecedor(nt,nc,'Fornecedor 1',np_)
             st.success("Adicionado!") if ok else st.error("Já existe."); st.rerun()
     with tfa:
-        for f in get_faccionistas():
-            with st.expander(f"{f['modelo']}   |   Ativa: {f['faccionista_ativa']}   |   {fmt(get_preco_costura(f['modelo']))}/peça"):
-                c1,c2,c3,c4 = st.columns(4)
+        busca_fac = st.text_input("🔍 Buscar modelo", key="busca_fac", placeholder="Digite o modelo...")
+        facs = get_faccionistas()
+        if busca_fac:
+            facs = [f for f in facs if busca_fac.lower() in f['modelo'].lower()]
+        for f in facs:
+            pb = float(f.get('f1_preco_branco') or f['f1_preco'])
+            pc = float(f.get('f1_preco_colorido') or f['f1_preco'])
+            with st.expander(f"{f['modelo']}   |   Ativa: {f['faccionista_ativa']}   |   🤍 Branca: {fmt(pb)}   |   🎨 Colorida: {fmt(pc)}"):
+                c1,c2,c3 = st.columns(3)
                 fn1=c1.text_input("Faccionista 1",f['f1_nome'],key=f"fn1{f['id']}")
-                fp1=c2.number_input("Preço F1",0.0,value=float(f['f1_preco']),step=0.1,key=f"fp1{f['id']}")
-                fn2=c3.text_input("Faccionista 2",f['f2_nome'],key=f"fn2{f['id']}")
-                fp2=c4.number_input("Preço F2",0.0,value=float(f['f2_preco']),step=0.1,key=f"fp2{f['id']}")
-                c5,c6,c7 = st.columns(3)
-                fn3=c5.text_input("Faccionista 3",f['f3_nome'],key=f"fn3{f['id']}")
-                fp3=c6.number_input("Preço F3",0.0,value=float(f['f3_preco']),step=0.1,key=f"fp3{f['id']}")
+                fn2=c2.text_input("Faccionista 2",f['f2_nome'],key=f"fn2{f['id']}")
+                fn3=c3.text_input("Faccionista 3",f['f3_nome'],key=f"fn3{f['id']}")
+                st.markdown('<p style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Costura Blusa Branca</p>', unsafe_allow_html=True)
+                cb1,cb2,cb3 = st.columns(3)
+                fpb1=cb1.number_input(f"{fn1}",0.0,value=float(f.get('f1_preco_branco') or f['f1_preco']),step=0.1,key=f"fpb1{f['id']}")
+                fpb2=cb2.number_input(f"{fn2}",0.0,value=float(f.get('f2_preco_branco') or 0),step=0.1,key=f"fpb2{f['id']}")
+                fpb3=cb3.number_input(f"{fn3}",0.0,value=float(f.get('f3_preco_branco') or 0),step=0.1,key=f"fpb3{f['id']}")
+                st.markdown('<p style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Costura Blusa Colorida</p>', unsafe_allow_html=True)
+                cc1,cc2,cc3 = st.columns(3)
+                fpc1=cc1.number_input(f"{fn1} ",0.0,value=float(f.get('f1_preco_colorido') or f['f1_preco']),step=0.1,key=f"fpc1{f['id']}")
+                fpc2=cc2.number_input(f"{fn2} ",0.0,value=float(f.get('f2_preco_colorido') or 0),step=0.1,key=f"fpc2{f['id']}")
+                fpc3=cc3.number_input(f"{fn3} ",0.0,value=float(f.get('f3_preco_colorido') or 0),step=0.1,key=f"fpc3{f['id']}")
+                c5,c6 = st.columns([1,3])
                 op=['Mais Barata',fn1,fn2,fn3]; ix=op.index(f['faccionista_ativa']) if f['faccionista_ativa'] in op else 0
-                faa=c7.selectbox("Ativa",op,index=ix,key=f"faa{f['id']}")
-                if st.button("Salvar",key=f"sfac{f['id']}"):
+                faa=c5.selectbox("Faccionista Ativa",op,index=ix,key=f"faa{f['id']}")
+                if st.button("💾 Salvar",key=f"sfac{f['id']}"):
                     ant=get_preco_costura(f['modelo'])
-                    update_faccionista(f['id'],{'f1_nome':fn1,'f1_preco':fp1,'f2_nome':fn2,'f2_preco':fp2,'f3_nome':fn3,'f3_preco':fp3,'faccionista_ativa':faa})
+                    update_faccionista(f['id'],{
+                        'f1_nome':fn1,'f1_preco':fpc1,'f2_nome':fn2,'f2_preco':fpc2,'f3_nome':fn3,'f3_preco':fpc3,
+                        'f1_preco_branco':fpb1,'f2_preco_branco':fpb2,'f3_preco_branco':fpb3,
+                        'f1_preco_colorido':fpc1,'f2_preco_colorido':fpc2,'f3_preco_colorido':fpc3,
+                        'faccionista_ativa':faa
+                    })
                     novo=get_preco_costura(f['modelo'])
                     if abs(novo-ant)>0.001: add_historico('Costura',f['modelo'],ant,novo,faa,'')
                     catalogo_cache.clear(); st.success("Atualizado!"); st.rerun()
