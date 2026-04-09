@@ -142,6 +142,7 @@ def init_db():
         pass
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_parametros():
     rows = supabase.table('parametros').select('*').execute().data
     return {r['chave']: r['valor'] for r in rows}
@@ -154,12 +155,14 @@ def set_parametro(chave, valor):
         supabase.table('parametros').insert({'chave': chave, 'valor': valor}).execute()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_fornecedores():
     return supabase.table('fornecedores').select('*').order('tecido').order('cor').execute().data
 
 def update_fornecedor(fid, data: dict):
     supabase.table('fornecedores').update(data).eq('id', fid).execute()
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_preco_kg(tecido, cor):
     chave = f"{tecido}|{cor}"
     rows = supabase.table('fornecedores').select('*').eq('chave', chave).execute().data
@@ -185,12 +188,14 @@ def add_fornecedor(tecido, cor, f1_nome='Fornecedor 1', f1_preco=0.0):
         return False
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_faccionistas():
     return supabase.table('faccionistas').select('*').order('modelo').execute().data
 
 def update_faccionista(fid, data: dict):
     supabase.table('faccionistas').update(data).eq('id', fid).execute()
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_preco_costura(modelo, cor=None):
     rows = supabase.table('faccionistas').select('*').eq('modelo', modelo).execute().data
     if not rows:
@@ -220,6 +225,7 @@ def get_preco_costura(modelo, cor=None):
     return precos.get(fa, 4.0) or 4.0
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_skus(modelo=None, tecido=None, cor=None):
     q = supabase.table('skus').select('*')
     if modelo: q = q.eq('modelo', modelo)
@@ -227,6 +233,7 @@ def get_skus(modelo=None, tecido=None, cor=None):
     if cor:    q = q.eq('cor', cor)
     return q.order('modelo').order('tecido').order('cor').order('tamanho').execute().data
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_peso(modelo, tecido, cor, tamanho):
     rows = supabase.table('skus').select('peso_g').eq('modelo', modelo).eq('tecido', tecido).eq('cor', cor).eq('tamanho', tamanho).execute().data
     return rows[0]['peso_g'] if rows else None
@@ -237,6 +244,8 @@ def upsert_sku(modelo, tecido, cor, tamanho, peso_g):
         supabase.table('skus').update({'peso_g': peso_g}).eq('id', existing[0]['id']).execute()
     else:
         supabase.table('skus').insert({'modelo': modelo, 'tecido': tecido, 'cor': cor, 'tamanho': tamanho, 'peso_g': peso_g}).execute()
+    get_skus.clear()
+    get_peso.clear()
 
 def delete_sku(sku_id):
     supabase.table('skus').delete().eq('id', sku_id).execute()
@@ -247,6 +256,8 @@ def update_sku_campo(ids: list, campo: str, valor):
         raise ValueError(f"Campo '{campo}' nao permitido.")
     for sku_id in ids:
         supabase.table('skus').update({campo: valor}).eq('id', sku_id).execute()
+    get_skus.clear()
+    get_peso.clear()
 
 
 def add_registro_mensal(data, numero_pedido, modelo, faixa, variante_faixa,
@@ -258,6 +269,7 @@ def add_registro_mensal(data, numero_pedido, modelo, faixa, variante_faixa,
         'receita': receita, 'custo': custo, 'lucro': lucro, 'observacao': observacao
     }).execute()
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_relatorio_mensal(mes=None):
     q = supabase.table('relatorio_mensal').select('*')
     if mes:
@@ -278,6 +290,7 @@ def add_historico(tipo, tecido_modelo, preco_anterior, preco_novo, fornecedor_fa
         'motivo': motivo
     }).execute()
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_historico():
     return supabase.table('historico').select('*').order('data', desc=True).order('id', desc=True).execute().data
 
@@ -285,9 +298,11 @@ def delete_historico(hid):
     supabase.table('historico').delete().eq('id', hid).execute()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_usuarios():
     return supabase.table('usuarios').select('id,nome,email,nivel,ativo,criado_em').order('criado_em').execute().data
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_usuario_por_email(email: str):
     rows = supabase.table('usuarios').select('*').eq('email', email).execute().data
     return rows[0] if rows else None
