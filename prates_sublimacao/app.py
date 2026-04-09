@@ -33,9 +33,11 @@ st.set_page_config(
 
 @st.cache_data(show_spinner=False)
 def get_logo():
-    if os.path.exists("logo.png"):
-        with open("logo.png","rb") as f:
-            return base64.b64encode(f.read()).decode()
+    # Tenta na subpasta primeiro, depois na raiz
+    for path in ["prates_sublimacao/logo.png", "logo.png"]:
+        if os.path.exists(path):
+            with open(path,"rb") as f:
+                return base64.b64encode(f.read()).decode()
     return None
 
 _LOGO = get_logo()
@@ -182,6 +184,13 @@ CHART = dict(
 # ══ DASHBOARD ══════════════════════════════════
 if pagina == "📊 Dashboard":
     titulo("📊", "Dashboard")
+    if 'dash_ok' not in st.session_state:
+        st.session_state['dash_ok'] = False
+    if not st.session_state['dash_ok']:
+        if st.button("🔄 Carregar Dashboard", use_container_width=True):
+            st.session_state['dash_ok'] = True
+            st.rerun()
+        st.stop()
     kpis = resumo_dashboard()
     if not kpis:
         st.warning("Nenhum SKU cadastrado.")
